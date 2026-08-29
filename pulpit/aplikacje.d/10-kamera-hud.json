@@ -1,0 +1,11 @@
+{
+  "nazwa": "KAMERA CVBS + HUD",
+  "opis": "Pełnoekranowy podgląd wejścia analogowego z OSD",
+  "uruchom": [
+    "/usr/local/bin/hdmi-cvbs-camera"
+  ],
+  "wymaga": {
+    "plik": "/usr/local/bin/hdmi-cvbs-camera"
+  },
+  "pelny-ekran": true
+}

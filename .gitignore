@@ -1,0 +1,45 @@
+# Lokalne instrukcje i pamięć konkretnego stanowiska
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Edytory i system
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Dane pracy i artefakty
+*.log
+*.pid
+*.sock
+*.tmp
+nagrania/
+zrzuty/
+build/
+dist/
+
+# Sekrety i konfiguracje konkretnej stacji
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.local.json
+router.json
+
+# Kopie tworzone przez instalator/łatkę
+*.przed-gcs
+*.bak

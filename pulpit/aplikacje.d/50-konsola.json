@@ -1,0 +1,10 @@
+{
+  "nazwa": "KONSOLA",
+  "opis": "Powłoka tekstowa — polecenia systemowe",
+  "grupa": "SYSTEM",
+  "uruchom": ["lxterminal"],
+  "wymaga": {"polecenie": "lxterminal"},
+  "pelny-ekran": true,
+  "okno": "lxterminal",
+  "kolejnosc": 50
+}

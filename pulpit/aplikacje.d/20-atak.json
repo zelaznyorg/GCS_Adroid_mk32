@@ -1,0 +1,9 @@
+{
+  "nazwa": "ATAK-CIV",
+  "opis": "Mapa taktyczna, obraz z UAS Tool",
+  "desktop": "waydroid.com.atakmap.app.civ",
+  "wymaga": {
+    "usluga": "waydroid-container"
+  },
+  "pelny-ekran": true
+}

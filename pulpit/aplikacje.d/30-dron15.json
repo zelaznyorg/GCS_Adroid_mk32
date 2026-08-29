@@ -1,0 +1,17 @@
+{
+  "nazwa": "DRON 15 — podgląd",
+  "opis": "Obraz z ZR30 i telemetria ze stacji naziemnej",
+  "uruchom": [
+    "chromium",
+    "--password-store=basic",
+    "--ozone-platform-hint=auto",
+    "--new-window",
+    "--app=http://127.0.0.1:8095/"
+  ],
+  "wymaga": {
+    "usluga": "dron15-gcs"
+  },
+  "pelny-ekran": true,
+  "pokretlo": "wlasne",
+  "okno": "chrome-"
+}

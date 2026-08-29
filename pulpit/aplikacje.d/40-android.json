@@ -1,0 +1,13 @@
+{
+  "nazwa": "ANDROID",
+  "opis": "Pełny pulpit Waydroida i pozostałe aplikacje",
+  "grupa": "SYSTEM",
+  "uruchom": [
+    "waydroid",
+    "show-full-ui"
+  ],
+  "wymaga": {
+    "usluga": "waydroid-container"
+  },
+  "pelny-ekran": true
+}

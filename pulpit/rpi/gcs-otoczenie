@@ -1,0 +1,62 @@
+#!/bin/sh
+# Gasi i przywraca elementy pulpitu Raspberry Pi OS na czas pracy GCS.
+#
+#   gcs-otoczenie ukryj      # przy starcie pulpitu GCS
+#   gcs-otoczenie przywroc   # przy zatrzymaniu
+#
+# ⛔ Po co: aplikacja zewnętrzna (np. Firefox) nie zajmuje całego ekranu, więc
+# spod niej widać wszystko, co leży niżej. Bez tego był to pasek zadań maliny
+# i jej pulpit z ikonami z ~/Desktop. Ustalenie Toma 2026-08-29: tapeta może
+# zostać, reszta nie — tapetę kładzie nasza własna warstwa (`gcs_pulpit/tlo.py`).
+#
+# ⚠ Oba procesy chodzą pod `lwrespawn`, czyli wstają same po zabiciu. Dlatego
+# najpierw ginie opiekun, dopiero potem proces — odwrotna kolejność nic nie da.
+#
+# Odwracalność: `przywroc` uruchamia je z powrotem dokładnie tak, jak robi to
+# /etc/xdg/labwc/autostart. Żaden plik systemowy NIE jest zmieniany, więc
+# wyłączenie usługi gcs-pulpit oddaje malinę w stanie fabrycznym.
+set -u
+
+PASEK=/usr/bin/wf-panel-pi
+PULPIT=/usr/bin/pcmanfm-pi
+
+ubij() {
+  # $1 = wzorzec opiekuna, $2 = wzorzec procesu
+  pkill -f "lwrespawn $1" 2>/dev/null || true
+  pkill -x "$(basename "$1")" 2>/dev/null || true
+  [ -n "${2:-}" ] && pkill -f "$2" 2>/dev/null || true
+  return 0
+}
+
+# W sesji GCS pulpit maliny NIE JEST uruchamiany w ogole (labwc -C czyta tylko
+# nasz autostart), wiec nie ma czego gasic ani przywracac. Bez tego sprawdzenia
+# `przywroc` przy kazdym restarcie uslugi wstrzykiwalby pasek zadan do naszej
+# wlasnej sesji — mignalby na ekranie i zaraz zginal przy ponownym `ukryj`.
+w_sesji_gcs() {
+  pgrep -f "labwc -C /etc/gcs/labwc" >/dev/null 2>&1
+}
+
+case "${1:-}" in
+  ukryj)
+    ubij "$PASEK"
+    # pcmanfm-pi to opakowanie; sam pulpit chodzi jako `pcmanfm --desktop`.
+    ubij "$PULPIT" "pcmanfm --desktop"
+    echo "GCS: pasek i pulpit maliny wygaszone"
+    ;;
+  przywroc)
+    if w_sesji_gcs; then
+      echo "GCS: sesja GCS — pulpit maliny i tak nie działa, nie przywracam"
+      exit 0
+    fi
+    # `command -v` chroni przed sytuacją, w której pakiet zniknął z systemu.
+    if [ -x /usr/bin/lwrespawn ]; then
+      [ -x "$PULPIT" ] && (setsid /usr/bin/lwrespawn "$PULPIT" >/dev/null 2>&1 &)
+      [ -x "$PASEK" ] && (setsid /usr/bin/lwrespawn "$PASEK" >/dev/null 2>&1 &)
+    fi
+    echo "GCS: pasek i pulpit maliny przywrócone"
+    ;;
+  *)
+    echo "użycie: $0 ukryj|przywroc" >&2
+    exit 2
+    ;;
+esac

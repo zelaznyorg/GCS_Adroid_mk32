@@ -1,0 +1,44 @@
+#!/bin/sh
+# Sesja graficzna GCS — to, co lightdm uruchamia zamiast pulpitu Raspberry Pi OS.
+#
+# Wzorowana na /usr/bin/labwc-pi, z jedną zasadniczą różnicą:
+#
+#     labwc-pi:  labwc -m                    <- scala /etc/xdg + ~/.config
+#     my:        labwc -C /etc/gcs/labwc     <- czyta WYŁĄCZNIE nasz katalog
+#
+# Dzięki temu `/etc/xdg/labwc/autostart` (pasek `wf-panel-pi` i pulpit
+# `pcmanfm --desktop`) w ogóle się nie uruchamia. Nie trzeba go zabijać —
+# on po prostu nie wstaje. `gcs-otoczenie` zostaje dla sesji maliny.
+#
+# Powrót do pulpitu maliny (przez SSH, gdy ekran nie odpowiada):
+#     sudo gcs-ui malina && sudo systemctl restart lightdm
+set -u
+
+# Środowisko Raspberry Pi OS (XDG_DATA_DIRS, katalog Desktop, motywy Qt/GTK).
+[ -r /usr/bin/setup_env ] && . /usr/bin/setup_env
+
+# kanshi wywraca się bez pliku konfiguracji — tak samo robi labwc-pi.
+if [ ! -f "$HOME/.config/kanshi/config" ]; then
+  mkdir -p "$HOME/.config/kanshi"
+  : > "$HOME/.config/kanshi/config"
+fi
+
+# Malina bez MMU GPU musi renderować programowo — przepisane z labwc-pi.
+if command -v raspi-config >/dev/null 2>&1; then
+  if raspi-config nonint is_pi && ! raspi-config nonint gpu_has_mmu; then
+    export WLR_RENDERER=pixman
+  fi
+fi
+
+export XDG_CURRENT_DESKTOP=labwc
+export XDG_SESSION_DESKTOP=gcs
+
+# ⛔ Celowo BEZ `exec`. Pulpit chodzi jako usluga uzytkownika, czyli w
+# `user@1000.service` — a tego restart lightdm NIE dotyka. Zmierzone
+# 2026-08-29: po powrocie do sesji maliny nasz pulpit dalej zaslanial ekran,
+# czyli droga powrotu prowadzila donikad. Skoro to my go wlaczamy, my go
+# gasimy: koniec kompozytora = koniec pulpitu.
+/usr/bin/labwc -C /etc/gcs/labwc "$@"
+KOD=$?
+systemctl --user stop gcs-pulpit 2>/dev/null || true
+exit $KOD

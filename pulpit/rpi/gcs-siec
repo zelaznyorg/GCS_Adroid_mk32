@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Pomocnik sieciowy pulpitu GCS — wąskie, nazwane operacje na NetworkManagerze.
+
+NetworkManager wymaga uprawnień do włączenia radia i połączenia z siecią, a polkit
+przyznaje je tylko **aktywnej sesji lokalnej**. Pulpit chodzi jako jednostka
+użytkownika, więc dostaje odmowę tak samo jak połączenie po SSH:
+
+    Error: failed to set Wi-Fi radio: Not authorized to perform this operation
+
+⛔ **Dlatego NIE dajemy w sudoers `nmcli` z gwiazdką.** To ten sam wzorzec, który
+w stacji DRON 15 obsługuje panel STACJA: sudoers wskazuje **ten jeden plik**,
+a plik sam decyduje, co wolno. Lista poleceń jest zamknięta, argumenty idą przez
+`argv` (nigdy przez powłokę), a hasło przychodzi do pomocnika wejściem
+standardowym, więc nie trafia do polecenia `sudo` ani do dziennika. Ograniczenie:
+udokumentowany interfejs `nmcli device wifi connect` wymaga następnie hasła jako
+argumentu i lokalny podgląd procesów może zobaczyć je podczas łączenia.
+
+    gcs-siec wifi-on
+    gcs-siec wifi-off
+    gcs-siec rescan
+    gcs-siec connect <SSID>        # hasło na stdin, pusta linia = sieć otwarta
+    gcs-siec connect-hidden <SSID> # to samo, ale sieć nie rozgłasza nazwy
+    gcs-siec forget <SSID>
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+
+NMCLI = "/usr/bin/nmcli"
+LIMIT_SSID = 64
+
+
+def uruchom(argumenty: list[str]) -> int:
+    wynik = subprocess.run([NMCLI, *argumenty], capture_output=True, text=True, timeout=90)
+    if wynik.stdout:
+        print(wynik.stdout, end="")
+    if wynik.stderr:
+        print(wynik.stderr, end="", file=sys.stderr)
+    return wynik.returncode
+
+
+def sprawdz_ssid(ssid: str) -> str:
+    ssid = ssid.strip()
+    if not ssid:
+        print("BŁĄD: pusta nazwa sieci", file=sys.stderr)
+        raise SystemExit(2)
+    if len(ssid) > LIMIT_SSID:
+        print("BŁĄD: nazwa sieci za długa", file=sys.stderr)
+        raise SystemExit(2)
+    if "\n" in ssid or "\r" in ssid or "\x00" in ssid:
+        print("BŁĄD: nazwa sieci zawiera znak sterujący", file=sys.stderr)
+        raise SystemExit(2)
+    return ssid
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    polecenie = sys.argv[1]
+
+    if polecenie == "wifi-on":
+        return uruchom(["radio", "wifi", "on"])
+    if polecenie == "wifi-off":
+        return uruchom(["radio", "wifi", "off"])
+    if polecenie == "rescan":
+        # Świeży skan bywa zajęty tuż po włączeniu radia — to nie jest błąd.
+        return uruchom(["device", "wifi", "rescan"])
+
+    if polecenie in {"connect", "connect-hidden"}:
+        if len(sys.argv) != 3:
+            print(f"Użycie: gcs-siec {polecenie} <SSID>  (hasło na stdin)", file=sys.stderr)
+            return 2
+        ssid = sprawdz_ssid(sys.argv[2])
+        haslo = sys.stdin.readline().rstrip("\n")
+        argumenty = ["device", "wifi", "connect", ssid]
+        if haslo:
+            argumenty += ["password", haslo]
+        if polecenie == "connect-hidden":
+            argumenty += ["hidden", "yes"]
+        return uruchom(argumenty)
+
+    if polecenie == "forget":
+        if len(sys.argv) != 3:
+            print("Użycie: gcs-siec forget <SSID>", file=sys.stderr)
+            return 2
+        return uruchom(["connection", "delete", "id", sprawdz_ssid(sys.argv[2])])
+
+    print(f"BŁĄD: nieznane polecenie „{polecenie}”", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
