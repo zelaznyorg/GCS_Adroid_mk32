@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>DRON15 Cockpit — makieta interfejsu</title>
+<style>
+  :root{
+    --tlo:#07090b; --tafla:rgba(10,14,18,.72); --tafla2:rgba(16,22,28,.92);
+    --obwod:rgba(255,255,255,.16); --obwod2:rgba(255,255,255,.08);
+    --tekst:#e8edf2; --drugi:#93a1ad; --akcent:#4da3ff;
+    --ok:#3ddc84; --uwaga:#ffb020; --alarm:#ff3b30;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#05070a;color:var(--tekst);
+       font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding:26px;font-variant-numeric:tabular-nums}
+  h1{font-size:21px;font-weight:600}
+  .lead{color:var(--drugi);font-size:13px;margin:6px 0 22px;max-width:100ch}
+  h2{font-size:14px;font-weight:600;margin:30px 0 4px;color:var(--akcent);
+     letter-spacing:.10em;text-transform:uppercase}
+  .pod{color:var(--drugi);font-size:13px;margin-bottom:12px;max-width:100ch}
+  code{background:#12181f;padding:1px 5px;border-radius:4px;font-size:12px}
+  .ramka{width:100%;overflow:hidden;border:1px solid #1b232c;border-radius:8px;background:#000}
+  .skala{transform-origin:top left}
+  .ekran{position:relative;overflow:hidden;font-size:22px}
+  .mk32{width:1920px;height:1200px}
+  .desktop{width:1920px;height:1080px}
+
+  /* --------------------------------------------------- tła */
+  .kamera{position:absolute;inset:0;background:
+     radial-gradient(130% 90% at 50% -10%,#a8c8e2 0%,#6d93b4 34%,#3b5f7c 58%,#20394d 76%);}
+  .ziemia{position:absolute;left:0;right:0;top:54%;bottom:0;
+     background:linear-gradient(#46523a,#2c3426 55%,#191e16)}
+  .pas{position:absolute;left:36%;top:54%;width:28%;height:46%;opacity:.55;
+     background:linear-gradient(#6a6a6a,#333);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%)}
+  .las{position:absolute;left:0;top:52%;width:26%;height:14%;
+     background:radial-gradient(closest-side,#2c3a26 60%,transparent);opacity:.8}
+
+  /* --------------------------------------------------- wspólne */
+  .tafla{position:absolute;background:var(--tafla);border:1px solid var(--obwod);
+     border-radius:12px;backdrop-filter:blur(3px)}
+  .etyk{font-size:15px;letter-spacing:.09em;color:var(--drugi);text-transform:uppercase}
+  .duza{font-size:42px;font-weight:600;line-height:1.02}
+  .duza small{font-size:19px;font-weight:400;color:var(--drugi)}
+  .sred{font-size:28px;font-weight:600}
+  .ok{color:var(--ok)} .uw{color:var(--uwaga)} .al{color:var(--alarm)} .ak{color:var(--akcent)}
+
+  /* --------------------------------------------------- pas stanu */
+  .stan{left:0;right:92px;top:0;height:80px;border-radius:0;border-width:0 0 1px 0;
+     display:flex;align-items:stretch;background:linear-gradient(rgba(7,9,11,.92),rgba(7,9,11,.72))}
+  .pole{padding:0 22px;display:flex;flex-direction:column;justify-content:center;gap:2px;
+     border-right:1px solid var(--obwod2)}
+  .pole b{font-size:26px;font-weight:600;letter-spacing:.01em}
+  .pole span{font-size:13px;color:var(--drugi);letter-spacing:.07em;text-transform:uppercase}
+  .prawo{margin-left:auto;border-right:0}
+  .rola{display:flex;align-items:center;gap:10px;padding:0 22px;border-left:1px solid var(--obwod2)}
+  .kropka{width:11px;height:11px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok)}
+
+  /* --------------------------------------------------- kolumny */
+  .lewa{left:24px;top:104px;width:252px;padding:18px}
+  .prawa{right:116px;top:104px;width:252px;padding:18px}
+  .w{margin-bottom:20px}.w:last-child{margin-bottom:0}
+  .kreska{height:1px;background:var(--obwod2);margin:14px 0}
+
+  /* --------------------------------------------------- baner */
+  .baner{left:300px;right:392px;top:108px;height:92px;background:var(--alarm);border-radius:12px;
+     display:flex;align-items:center;padding:0 28px;gap:20px;box-shadow:0 10px 34px rgba(0,0,0,.6)}
+  .baner .i{font-size:38px}
+  .baner .t{font-size:31px;font-weight:700}
+  .baner .p{font-size:17px;opacity:.92}
+
+  /* --------------------------------------------------- dół */
+  .dol{position:absolute;left:24px;right:116px;bottom:24px;height:200px;display:flex;gap:16px}
+  .kafel{background:var(--tafla);border:1px solid var(--obwod);border-radius:12px;padding:14px 18px}
+  .mini{width:290px;padding:0;overflow:hidden;position:relative}
+  .mini .podpis{position:absolute;left:12px;bottom:10px;font-size:14px;color:#cfe0ee;
+     background:rgba(0,0,0,.55);padding:3px 8px;border-radius:6px;letter-spacing:.06em}
+  .hsi{width:186px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .roza{width:112px;height:112px;border:2px solid rgba(255,255,255,.3);border-radius:50%;
+     position:relative;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:600}
+  .igla{position:absolute;top:5px;border-left:9px solid transparent;border-right:9px solid transparent;
+     border-bottom:25px solid var(--akcent)}
+  .kom{flex:1;overflow:hidden}
+  .kom .l{font-size:18px;padding:4px 0;border-bottom:1px solid var(--obwod2);color:#cbd6e0}
+  .akcje{display:flex;gap:14px}
+  .btn{width:148px;border-radius:14px;border:1px solid var(--obwod);background:rgba(255,255,255,.07);
+     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+     font-size:18px;font-weight:600;letter-spacing:.05em;position:relative}
+  .btn .ico{font-size:32px}
+  .btn small{font-weight:400;font-size:12px;color:var(--drugi);letter-spacing:0}
+  .btn.rtl{background:rgba(255,59,48,.16);border-color:rgba(255,59,48,.5)}
+  .btn.rec{background:rgba(255,59,48,.10)}
+  .pierscien{position:absolute;inset:-1px;border-radius:14px;border:3px solid var(--alarm);
+     clip-path:polygon(0 0,38% 0,38% 100%,0 100%);opacity:.9}
+
+  /* --------------------------------------------------- zakładki */
+  .zak{right:0;top:0;bottom:0;width:92px;border-radius:0;border-width:0 0 0 1px;
+     display:flex;flex-direction:column;background:rgba(7,9,11,.92)}
+  .z{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+     border-bottom:1px solid var(--obwod2);font-size:12px;color:var(--drugi);letter-spacing:.07em}
+  .z .ico{font-size:26px}
+  .z.akt{background:rgba(77,163,255,.16);color:#fff;box-shadow:inset 3px 0 0 var(--akcent)}
+
+  /* --------------------------------------------------- wladza */
+  .stan.oddana{background:linear-gradient(rgba(84,58,10,.96),rgba(60,42,8,.9));
+     border-bottom:2px solid var(--uwaga)}
+  .odbierz{display:flex;align-items:center;justify-content:center;padding:0 26px;
+     background:rgba(255,176,32,.22);border-left:1px solid rgba(255,176,32,.5);
+     font-size:22px;font-weight:700;letter-spacing:.06em;color:#ffdca0}
+  .prosba{left:300px;right:392px;top:108px;height:154px;background:#3a2c07;
+     border:2px solid var(--uwaga);border-radius:14px;display:flex;align-items:center;
+     padding:0 28px;gap:24px;box-shadow:0 12px 40px rgba(0,0,0,.7);position:absolute}
+  .prosba .i{font-size:40px}
+  .prosba .t{font-size:29px;font-weight:700;color:#ffe6bb}
+  .prosba .p{font-size:18px;color:#d9c49b;margin-top:4px}
+  .prosba .btny{margin-left:auto;display:flex;gap:14px}
+  .pbtn{width:190px;height:96px;border-radius:14px;display:flex;flex-direction:column;
+     align-items:center;justify-content:center;gap:6px;font-size:21px;font-weight:700;
+     letter-spacing:.05em;position:relative;border:1px solid var(--obwod)}
+  .pbtn.tak{background:rgba(255,176,32,.25);border-color:var(--uwaga);color:#ffe6bb}
+  .pbtn.nie{background:rgba(255,255,255,.07);color:#cfd8e0}
+  .pbtn small{font-weight:400;font-size:13px;color:#bda87f;letter-spacing:0}
+  .pbtn .ring{position:absolute;inset:-2px;border-radius:14px;border:3px solid var(--uwaga);
+     clip-path:polygon(0 0,55% 0,55% 100%,0 100%)}
+
+  /* --------------------------------------------------- mapa */
+  .mapa{position:absolute;inset:0;background:#0f151b}
+  .mapa .siatka{position:absolute;inset:0;opacity:.5;
+     background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+     background-size:64px 64px}
+  .mapa svg{position:absolute;inset:0;width:100%;height:100%}
+
+  /* --------------------------------------------------- desktop */
+  .kol-l{position:absolute;left:0;top:0;bottom:0;width:380px;background:var(--tafla2);
+     border-right:1px solid var(--obwod2);padding:22px}
+  .kol-p{position:absolute;right:0;top:0;bottom:0;width:360px;background:var(--tafla2);
+     border-left:1px solid var(--obwod2);padding:22px}
+  .srodek{position:absolute;left:380px;right:360px;top:0;bottom:0}
+  .tytul{font-size:15px;letter-spacing:.10em;text-transform:uppercase;color:var(--drugi);
+     margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+  .poz{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;
+     background:rgba(255,255,255,.04);margin-bottom:8px;font-size:19px}
+  .poz .nr{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.12);
+     display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600}
+  .poz.akt{background:rgba(77,163,255,.18);box-shadow:inset 0 0 0 1px rgba(77,163,255,.5)}
+  .poz .op{margin-left:auto;color:var(--drugi);font-size:15px}
+  .par{display:flex;justify-content:space-between;padding:9px 0;
+     border-bottom:1px solid var(--obwod2);font-size:19px}
+  .par span{color:var(--drugi)}
+  .klient{display:flex;align-items:center;gap:10px;padding:10px 0;font-size:18px;
+     border-bottom:1px solid var(--obwod2)}
+  .plakietka{font-size:13px;padding:3px 9px;border-radius:20px;letter-spacing:.05em;
+     background:rgba(255,255,255,.10);color:var(--drugi)}
+  .plakietka.pilot{background:rgba(61,220,132,.18);color:var(--ok)}
+  .pasek-narz{position:absolute;left:20px;top:20px;display:flex;gap:8px;z-index:3}
+  .narz{background:var(--tafla2);border:1px solid var(--obwod);border-radius:10px;
+     padding:11px 16px;font-size:17px;color:#dce6ef}
+  .narz.akt{background:rgba(77,163,255,.22);border-color:rgba(77,163,255,.6);color:#fff}
+  .os{position:absolute;left:20px;right:20px;bottom:20px;height:92px;background:var(--tafla2);
+     border:1px solid var(--obwod);border-radius:12px;display:flex;align-items:center;padding:0 22px;gap:0}
+  .paciorek{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:14px;color:var(--drugi)}
+  .kula{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.22)}
+  .kula.zrobiony{background:var(--ok)} .kula.teraz{background:var(--akcent);box-shadow:0 0 0 6px rgba(77,163,255,.22)}
+  .lacz{flex:1;height:3px;background:rgba(255,255,255,.16);margin:0 6px;margin-bottom:20px}
+  .lacz.zrobiony{background:var(--ok)}
+  .podglad{position:absolute;right:20px;top:20px;width:340px;height:200px;border-radius:12px;
+     overflow:hidden;border:1px solid var(--obwod);z-index:3}
+
+  /* --------------------------------------------------- checklista */
+  .lista{position:absolute;inset:0;background:#0b0f14;padding:28px 116px 28px 28px}
+  .nag{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+  .nag h3{font-size:32px;font-weight:600}
+  .nag span{color:var(--drugi);font-size:18px}
+  table{width:100%;border-collapse:collapse;font-size:20px}
+  th{text-align:left;font-size:14px;letter-spacing:.09em;color:var(--drugi);text-transform:uppercase;
+     padding:8px 12px;border-bottom:1px solid #1f2932}
+  td{padding:9px 12px;border-bottom:1px solid #151c24}
+  td.st{width:60px;font-size:25px;text-align:center}
+  td.p{color:#b6c4d1;font-family:Consolas,monospace;font-size:18px}
+  td.v{width:220px;font-family:Consolas,monospace;font-size:18px}
+  .werdykt{position:absolute;left:28px;right:116px;bottom:26px;height:98px;border-radius:12px;
+     display:flex;align-items:center;padding:0 28px;gap:24px;background:rgba(255,59,48,.14);
+     border:1px solid rgba(255,59,48,.5)}
+  .werdykt b{font-size:33px;color:var(--alarm)}
+  .werdykt p{color:var(--drugi);font-size:18px}
+  .werdykt .a{margin-left:auto;padding:14px 24px;border:1px solid var(--obwod);border-radius:10px;
+     font-size:18px;background:rgba(255,255,255,.07)}
+</style>
+</head>
+<body>
+
+<h1>DRON15 Cockpit — makieta interfejsu</h1>
+<p class="lead">
+  Wersja 3.0 — aplikacja na MK32 jest samodzielna i kompletna, stacja GCS jest dodatkiem,
+  a władza nad maszyną zostaje u operatora aparatury. Ten sam język wizualny na 7 calach
+  w słońcu i na dużym ekranie stacji. Zasady: obraz jest tłem, mapa i obraz zamieniają się
+  miejscami, kolor niesie znaczenie.
+  Rozdzielczość MK32 <b>do potwierdzenia</b> poleceniem <code>adb shell wm size</code>.
+  Dane na makiecie są przykładowe.
+</p>
+
+<h2>1 · LOT — kokpit na MK32</h2>
+<p class="pod">Klient lokalny. Rozmawia z serwerem tym samym API, co przeglądarka po drugiej stronie kraju.</p>
+<div class="ramka"><div class="skala"><div class="ekran mk32">
+  <div class="kamera"><div class="las"></div><div class="ziemia"></div><div class="pas"></div></div>
+
+  <div class="tafla stan">
+    <div class="pole"><b>ALTHOLD</b><span>tryb</span></div>
+    <div class="pole"><b class="uw">ROZBROJONY</b><span>stan</span></div>
+    <div class="pole"><b>24,1 V</b><span>4,02 V/ogn · 6S</span></div>
+    <div class="pole"><b class="ok">18 sat</b><span>HDOP 0,70</span></div>
+    <div class="pole"><b class="al">kurs —</b><span>źródło GNSS</span></div>
+    <div class="pole"><b>11,3 Hz</b><span>telemetria</span></div>
+    <div class="pole"><b>00:00</b><span>czas lotu</span></div>
+    <div class="rola prawo"><div class="kropka"></div><div><b style="font-size:22px">STERUJESZ TY</b>
+      <div style="font-size:13px;color:var(--drugi);letter-spacing:.06em">tryb samodzielny</div></div></div>
+  </div>
+
+  <div class="tafla lewa">
+    <div class="w"><div class="etyk">wysokość</div><div class="duza">12,4 <small>m</small></div></div>
+    <div class="w"><div class="etyk">wznoszenie</div><div class="sred">+0,3 m/s</div></div>
+    <div class="kreska"></div>
+    <div class="w"><div class="etyk">prędkość</div><div class="sred">2,1 m/s</div></div>
+    <div class="w"><div class="etyk">gaz / zawis</div><div class="sred">48 % <span style="font-size:16px;color:var(--drugi)">· 47 %</span></div></div>
+  </div>
+
+  <div class="tafla prawa">
+    <div class="w"><div class="etyk">głowica pitch</div><div class="duza">−34°</div></div>
+    <div class="w"><div class="etyk">yaw</div><div class="sred">+12°</div></div>
+    <div class="kreska"></div>
+    <div class="w"><div class="etyk">zoom</div><div class="sred">4,5×</div></div>
+    <div class="w"><div class="etyk">strumień</div><div class="sred" style="font-size:22px">H.264 720p</div></div>
+  </div>
+
+  <div class="baner">
+    <div class="i">⛔</div>
+    <div><div class="t">BRAK KURSU GNSS — RTL I MISJA NIEDOSTĘPNE</div>
+      <div class="p">jedyne źródło kursu to baza GNSS · sprowadź maszynę w AltHold</div></div>
+  </div>
+
+  <div class="dol">
+    <div class="kafel mini">
+      <div class="mapa"><div class="siatka"></div>
+        <svg viewBox="0 0 290 200">
+          <path d="M40 170 L95 120 L160 135 L230 60" stroke="#4da3ff" stroke-width="3" fill="none" stroke-dasharray="7 5"/>
+          <circle cx="40" cy="170" r="7" fill="#3ddc84"/><circle cx="95" cy="120" r="5" fill="#4da3ff"/>
+          <circle cx="160" cy="135" r="5" fill="#4da3ff"/><circle cx="230" cy="60" r="5" fill="#4da3ff"/>
+          <circle cx="118" cy="127" r="9" fill="#fff"/><circle cx="118" cy="127" r="17" fill="none" stroke="#fff" stroke-opacity=".4"/>
+        </svg></div>
+      <div class="podpis">MAPA · dotknij, aby zamienić</div>
+    </div>
+    <div class="kafel hsi">
+      <div class="roza"><div class="igla"></div>047°</div>
+      <div class="etyk" style="font-size:13px">kurs GNSS</div>
+    </div>
+    <div class="kafel kom">
+      <div class="etyk" style="margin-bottom:6px">komunikaty z kontrolera lotu</div>
+      <div class="l">PreArm: Mount: not healthy</div>
+      <div class="l">EKF3 IMU0 origin set</div>
+      <div class="l">GPS 1: detected as Unicore moving baseline</div>
+      <div class="l">ArduCopter V4.6.3 (3fc7011a)</div>
+    </div>
+    <div class="akcje">
+      <div class="kafel btn rtl"><div class="pierscien"></div><div class="ico">🏠</div>RTL<small>przytrzymaj</small></div>
+      <div class="kafel btn"><div class="ico">🎯</div>CENTRUM</div>
+      <div class="kafel btn"><div class="ico">📷</div>FOTO</div>
+      <div class="kafel btn rec"><div class="ico">⏺</div>REC</div>
+    </div>
+  </div>
+
+  <div class="tafla zak">
+    <div class="z akt"><div class="ico">🛩</div>LOT</div>
+    <div class="z"><div class="ico">🗺</div>MISJA</div>
+    <div class="z"><div class="ico">🎥</div>KAMERA</div>
+    <div class="z"><div class="ico">✔</div>PRZED</div>
+    <div class="z"><div class="ico">🔧</div>DIAG</div>
+    <div class="z"><div class="ico">⚙</div>USTAW</div>
+  </div>
+</div></div></div>
+
+<h2>2 &middot; WŁADZA — prośba stacji o sterowanie</h2>
+<p class="pod">
+  Operator na MK32 ma pełną władzę nad maszyną. Stacja dostaje ją wyłącznie wtedy, gdy
+  operator ją świadomie przekaże. <b>Przekazanie wymaga przytrzymania, odebranie — jednego
+  dotknięcia.</b> Ta asymetria jest celowa.
+</p>
+<div class="ramka"><div class="skala"><div class="ekran mk32">
+  <div class="kamera"><div class="las"></div><div class="ziemia"></div><div class="pas"></div></div>
+
+  <div class="tafla stan oddana">
+    <div class="pole"><b>LOITER</b><span>tryb</span></div>
+    <div class="pole"><b class="ok">UZBROJONY</b><span>stan</span></div>
+    <div class="pole"><b>23,4 V</b><span>3,90 V/ogn &middot; 6S</span></div>
+    <div class="pole"><b class="ok">21 sat</b><span>HDOP 0,60</span></div>
+    <div class="pole"><b class="ok">047&deg;</b><span>kurs GNSS</span></div>
+    <div class="pole prawo"><b class="uw">STERUJE: GCS biuro</b><span>pozostało 8 min 12 s</span></div>
+    <div class="odbierz">&#9664; ODBIERZ</div>
+  </div>
+
+  <div class="prosba">
+    <div class="i">&#129309;</div>
+    <div>
+      <div class="t">STACJA GCS PROSI O STEROWANIE</div>
+      <div class="p">&bdquo;GCS biuro&rdquo; &middot; powód: przelot trasy inspekcyjnej &middot; na 10 minut</div>
+      <div class="p" style="color:#b9a887">prośba wygaśnie sama za 24 s &middot; uzbrojenie i parametry zostają na MK32</div>
+    </div>
+    <div class="btny">
+      <div class="pbtn tak"><div class="ring"></div>PRZEKAŻ<small>przytrzymaj 2 s</small></div>
+      <div class="pbtn nie">ODMÓW</div>
+    </div>
+  </div>
+
+  <div class="tafla lewa" style="top:290px">
+    <div class="w"><div class="etyk">wysokość</div><div class="duza">58,2 <small>m</small></div></div>
+    <div class="w"><div class="etyk">prędkość</div><div class="sred">4,8 m/s</div></div>
+    <div class="kreska"></div>
+    <div class="w"><div class="etyk">od startu</div><div class="sred">412 m</div></div>
+  </div>
+
+  <div class="tafla prawa" style="top:290px">
+    <div class="w"><div class="etyk">kamera</div><div class="sred uw">stacja GCS</div>
+      <div style="margin-top:10px;padding:12px 0;text-align:center;border-radius:10px;
+           background:rgba(255,176,32,.18);border:1px solid rgba(255,176,32,.5);
+           font-size:18px;font-weight:700;color:#ffdca0">ODBIERZ KAMERĘ</div></div>
+    <div class="kreska"></div>
+    <div class="w"><div class="etyk">zawsze u operatora</div><div class="sred ok">RTL</div></div>
+    <div class="kreska"></div>
+    <div class="w"><div class="etyk">nieprzekazywalne</div>
+      <div style="font-size:18px;line-height:1.5;color:#cbd6e0">uzbrojenie (CH9)<br>zapis parametrów<br>checklista</div></div>
+  </div>
+
+  <div class="dol">
+    <div class="kafel kom" style="flex:1">
+      <div class="etyk" style="margin-bottom:6px">dziennik władzy</div>
+      <div class="l">14:02:11 &middot; sterowanie przekazane: GCS biuro (10 min)</div>
+      <div class="l">14:01:58 &middot; prośba o sterowanie: GCS biuro</div>
+      <div class="l">13:58:03 &middot; odrzucono COMMAND_LONG od GCS biuro — brak uprawnień do lotu</div>
+      <div class="l">13:57:40 &middot; stacja sparowana: 192.168.144.30</div>
+    </div>
+    <div class="akcje">
+      <div class="kafel btn rtl"><div class="ico">&#127968;</div>RTL<small>zawsze dostępne</small></div>
+      <div class="kafel btn"><div class="ico">&#127909;</div>KAMERA<small>u operatora GCS</small></div>
+    </div>
+  </div>
+
+  <div class="tafla zak">
+    <div class="z akt"><div class="ico">&#128745;</div>LOT</div><div class="z"><div class="ico">&#128506;</div>MISJA</div>
+    <div class="z"><div class="ico">&#127909;</div>KAMERA</div><div class="z"><div class="ico">&#10004;</div>PRZED</div>
+    <div class="z"><div class="ico">&#128295;</div>DIAG</div><div class="z"><div class="ico">&#9881;</div>USTAW</div>
+  </div>
+</div></div></div>
+
+<h2>3 &middot; MISJA — stacja GCS na Raspberry Pi 5</h2>
+<p class="pod">
+  Pełny edytor tras na dużym ekranie. Stacja bierze obraz <b>prosto z kamery</b>, a telemetrię
+  z MK32. Komend nie wyśle, dopóki operator aparatury nie przekaże jej władzy — i widzi to
+  wprost, z podanym powodem, zamiast wyszarzonych przycisków bez wyjaśnienia.
+</p>
+<div class="ramka"><div class="skala"><div class="ekran desktop">
+  <div class="srodek">
+    <div class="mapa"><div class="siatka"></div>
+      <svg viewBox="0 0 1180 1080">
+        <path d="M120 300 L360 250 L620 420 L900 300 L980 620" stroke="#4da3ff" stroke-width="5"
+              fill="none" stroke-linejoin="round"/>
+        <path d="M120 900 L120 300" stroke="#3ddc84" stroke-width="4" stroke-dasharray="10 8" fill="none"/>
+        <polygon points="80,180 1050,180 1050,980 80,980" fill="none" stroke="#ffb020"
+                 stroke-width="3" stroke-dasharray="14 10" opacity=".75"/>
+        <circle cx="120" cy="900" r="16" fill="#3ddc84"/>
+        <circle cx="120" cy="300" r="14" fill="#4da3ff"/><circle cx="360" cy="250" r="14" fill="#4da3ff"/>
+        <circle cx="620" cy="420" r="18" fill="#fff"/>
+        <circle cx="900" cy="300" r="14" fill="#4da3ff"/><circle cx="980" cy="620" r="14" fill="#4da3ff"/>
+        <circle cx="700" cy="700" r="10" fill="#ffb020"/>
+        <line x1="620" y1="420" x2="700" y2="700" stroke="#ffb020" stroke-width="3" stroke-dasharray="6 6"/>
+        <text x="716" y="706" fill="#ffb020" font-size="22" font-family="Segoe UI">ROI — komin</text>
+        <text x="140" y="928" fill="#3ddc84" font-size="22" font-family="Segoe UI">START / HOME</text>
+        <text x="90" y="168" fill="#ffb020" font-size="21" font-family="Segoe UI">GEOFENCE — 800 × 650 m</text>
+      </svg></div>
+
+    <div class="pasek-narz">
+      <div class="narz akt">✛ punkt</div><div class="narz">◠ orbita</div>
+      <div class="narz">▦ siatka</div><div class="narz">⌇ korytarz</div>
+      <div class="narz">◎ ROI</div><div class="narz">⬡ geofence</div>
+    </div>
+
+    <div class="podglad"><div class="kamera" style="position:absolute;inset:0">
+      <div class="ziemia"></div><div class="pas"></div></div>
+      <div class="podpis" style="position:absolute;left:10px;bottom:8px;font-size:13px;
+           background:rgba(0,0,0,.6);padding:3px 8px;border-radius:6px">ZR30 · 0,7 s opóźnienia</div>
+    </div>
+
+    <div class="os">
+      <div class="paciorek"><div class="kula zrobiony"></div>start</div><div class="lacz zrobiony"></div>
+      <div class="paciorek"><div class="kula zrobiony"></div>WP1 · 60 m</div><div class="lacz zrobiony"></div>
+      <div class="paciorek"><div class="kula teraz"></div>WP2 · foto</div><div class="lacz"></div>
+      <div class="paciorek"><div class="kula"></div>WP3 · ROI</div><div class="lacz"></div>
+      <div class="paciorek"><div class="kula"></div>WP4</div><div class="lacz"></div>
+      <div class="paciorek"><div class="kula"></div>RTL</div>
+      <div style="margin-left:26px;text-align:right">
+        <div style="font-size:24px;font-weight:600">2 z 5 · 41 %</div>
+        <div style="font-size:15px;color:var(--drugi)">pozostało 1,9 km · 5 min 20 s</div></div>
+    </div>
+  </div>
+
+  <div class="kol-l">
+    <div class="tytul">Trasa <span style="color:var(--akcent)">zapisz .plan</span></div>
+    <div class="poz"><div class="nr">S</div>Start · 5 m<div class="op">takeoff</div></div>
+    <div class="poz"><div class="nr">1</div>WP1 · 60 m<div class="op">6 m/s</div></div>
+    <div class="poz akt"><div class="nr">2</div>WP2 · 60 m<div class="op">zdjęcie</div></div>
+    <div class="poz"><div class="nr">3</div>WP3 · 45 m<div class="op">ROI komin</div></div>
+    <div class="poz"><div class="nr">4</div>WP4 · 45 m<div class="op">zawis 10 s</div></div>
+    <div class="poz"><div class="nr">R</div>Powrót<div class="op">RTL 50 m</div></div>
+
+    <div class="tytul" style="margin-top:26px">Podsumowanie</div>
+    <div class="par"><span>długość</span><b>3,2 km</b></div>
+    <div class="par"><span>czas przy 6 m/s</span><b>9 min 10 s</b></div>
+    <div class="par"><span>zdjęć</span><b>18</b></div>
+    <div class="par"><span>szacunek pakietu</span><b class="uw">61 %</b></div>
+    <div class="par"><span>maks. odległość</span><b>1,1 km</b></div>
+  </div>
+
+  <div class="kol-p">
+    <div class="tytul">Maszyna</div>
+    <div class="par"><span>tryb</span><b>LOITER</b></div>
+    <div class="par"><span>wysokość</span><b>58,2 m</b></div>
+    <div class="par"><span>bateria</span><b>23,4 V · 71 %</b></div>
+    <div class="par"><span>satelity</span><b class="ok">21 · HDOP 0,60</b></div>
+    <div class="par"><span>kurs GNSS</span><b class="ok">dostępny</b></div>
+    <div class="par"><span>telemetria</span><b>11,2 Hz</b></div>
+
+    <div class="tytul" style="margin-top:26px">Podłączeni</div>
+    <div class="klient"><div class="kropka"></div>MK32 · operator<span class="plakietka pilot" style="margin-left:auto">WŁADZA</span></div>
+    <div class="klient"><div class="kropka" style="background:var(--akcent);box-shadow:none"></div>Ta stacja (RPi 5)<span class="plakietka pilot" style="margin-left:auto">KAMERA</span></div>
+    <div class="klient"><div class="kropka" style="background:var(--drugi);box-shadow:none"></div>biuro · przeglądarka<span class="plakietka" style="margin-left:auto">OBSERWATOR</span></div>
+    <div class="klient"><div class="kropka" style="background:var(--drugi);box-shadow:none"></div>QGroundControl<span class="plakietka" style="margin-left:auto">OBSERWATOR</span></div>
+
+    <div style="margin-top:22px;padding:14px 16px;border:1px solid rgba(255,176,32,.45);
+         border-radius:10px;background:rgba(255,176,32,.10);font-size:16px;color:#f4dcae">
+      <b>Kamera: masz sterowanie</b> — pitch, yaw, zoom, zdjęcia i nagrywanie działają od razu.
+      <b>Lot: trzyma MK32</b> — przyciski komend lotu są nieaktywne. Możesz wysłać prośbę;
+      decyzja należy do operatora aparatury, który może cofnąć jedno i drugie w każdej chwili.
+    </div>
+  </div>
+</div></div></div>
+
+<h2>4 · PRZED LOTEM — checklista licząca się z parametrów</h2>
+<p class="pod">
+  Werdykty wyliczane przez <b>serwer</b>, nie przez klienta — dzięki temu każdy podłączony
+  widzi ten sam stan. Reguły w <code>preflight_rules.example.json</code>.
+</p>
+<div class="ramka"><div class="skala"><div class="ekran mk32">
+  <div class="lista">
+    <div class="nag"><h3>Przed lotem</h3><span>odczytano 1306 parametrów · 14 s temu</span></div>
+    <table>
+      <tr><th></th><th>kontrola</th><th>parametr</th><th>wartość</th><th>oczekiwane</th></tr>
+      <tr><td class="st ok">✔</td><td>Rama Quad X</td><td class="p">FRAME_CLASS / FRAME_TYPE</td><td class="v">1 / 1</td><td class="v">1 / 1</td></tr>
+      <tr><td class="st ok">✔</td><td>Mapowanie silników z Motor Testu</td><td class="p">SERVO1..4_FUNCTION</td><td class="v">34 36 33 35</td><td class="v">34 36 33 35</td></tr>
+      <tr><td class="st ok">✔</td><td>RTL: 50 m, min. wznoszenie 5 m</td><td class="p">RTL_ALT / RTL_CLIMB_MIN</td><td class="v">5000 / 500</td><td class="v">5000 / 500</td></tr>
+      <tr><td class="st ok">✔</td><td>Failsafe gazu poniżej minimum RC</td><td class="p">FS_THR_VALUE &lt; RC3_MIN</td><td class="v">975 &lt; 1045</td><td class="v">margines &gt; 20</td></tr>
+      <tr><td class="st ok">✔</td><td>Kalibracja akcelerometru pełna</td><td class="p">INS_ACCSCAL_X/Y/Z</td><td class="v">0,998 0,997 0,997</td><td class="v">≠ 1,000</td></tr>
+      <tr><td class="st uw">⚠</td><td>Kurs wyłącznie z GNSS — brak zapasu</td><td class="p">EK3_SRC1_YAW / COMPASS_USE</td><td class="v">2 / 0</td><td class="v">świadome</td></tr>
+      <tr><td class="st uw">⚠</td><td>ROI w misji idzie przez sterownik mounta w FC</td><td class="p">MNT1_TYPE / SERIAL2_PROTOCOL</td><td class="v">8 / 8</td><td class="v">sprawdź na ziemi</td></tr>
+      <tr><td class="st al">⛔</td><td>Kurs z bazy GNSS niedostępny</td><td class="p">GPS_RAW_INT.yaw</td><td class="v">65535</td><td class="v">wartość liczbowa</td></tr>
+      <tr><td class="st ok">✔</td><td>Datalink z blokadą degradacji stawek</td><td class="p">SERIAL6_PROTOCOL / _OPTIONS</td><td class="v">2 / 4096</td><td class="v">2 / 4096</td></tr>
+      <tr><td class="st ok">✔</td><td>Strumień transmisyjny gotowy</td><td class="p">ZR30 stream 1</td><td class="v">H.264 720p 2 Mbps</td><td class="v">H.264</td></tr>
+      <tr><td class="st ok">✔</td><td>Napięcie w oknie ZR30 i air unitu</td><td class="p">BATT_VOLTAGE</td><td class="v">24,1 V</td><td class="v">22,2 – 25,2 V</td></tr>
+    </table>
+    <div class="werdykt">
+      <div><b>NIE STARTOWAĆ</b><p>1 blokada, 2 ostrzeżenia · wynieś maszynę spod przeszkód i odczekaj na kurs z bazy GNSS</p></div>
+      <div class="a">▷ wymuś kontrolę PreArm</div>
+    </div>
+  </div>
+  <div class="tafla zak">
+    <div class="z"><div class="ico">🛩</div>LOT</div><div class="z"><div class="ico">🗺</div>MISJA</div>
+    <div class="z"><div class="ico">🎥</div>KAMERA</div><div class="z akt"><div class="ico">✔</div>PRZED</div>
+    <div class="z"><div class="ico">🔧</div>DIAG</div><div class="z"><div class="ico">⚙</div>USTAW</div>
+  </div>
+</div></div></div>
+
+<script>
+  function przeskaluj(){
+    document.querySelectorAll('.ramka').forEach(function(r){
+      var e = r.querySelector('.ekran');
+      if (!e.offsetWidth || !r.clientWidth) return;      // układ jeszcze nie policzony
+      var s = r.clientWidth / e.offsetWidth;
+      r.querySelector('.skala').style.transform = 'scale(' + s + ')';
+      r.style.height = (e.offsetHeight * s) + 'px';
+    });
+  }
+  // ResizeObserver zamiast zgadywania, kiedy uklad jest gotowy — odpala sie,
+  // gdy ramka faktycznie dostanie szerokosc, niezaleznie od kolejnosci ladowania.
+  if (window.ResizeObserver){
+    var obs = new ResizeObserver(przeskaluj);
+    document.querySelectorAll('.ramka').forEach(function(r){ obs.observe(r); });
+  }
+  window.addEventListener('resize', przeskaluj);
+  window.addEventListener('load', przeskaluj);
+  // kilka prob na starcie — niektore przegladarki i podglady licza uklad z opoznieniem
+  var proby = 0, tik = setInterval(function(){ przeskaluj(); if (++proby > 10) clearInterval(tik); }, 100);
+  przeskaluj();
+</script>
+</body>
+</html>

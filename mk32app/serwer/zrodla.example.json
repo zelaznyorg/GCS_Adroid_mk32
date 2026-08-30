@@ -1,0 +1,20 @@
+{
+  "zrodla": [
+    {
+      "id": "kamera",
+      "nazwa": "Kamera pokładowa",
+      "rtspGlowny": "rtsp://ADRES_KAMERY:8554/SCIEZKA"
+    }
+  ],
+  "telemetria": {
+    "host": "ADRES_ZRODLA_TELEMETRII",
+    "port": 19856
+  },
+  "archiwum": {
+    "wlaczone": true,
+    "katalog": "archiwum",
+    "wideo": "przy-widzach",
+    "trzymajDni": 30,
+    "limitGb": 50
+  }
+}

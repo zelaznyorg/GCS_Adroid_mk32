@@ -1,0 +1,69 @@
+; Serwer strony, API, telemetrii (SSE) i archiwum `.tlog`.
+; Wzorzec instalowany przez rpi/instaluj.sh; @ZNACZNIKI@ podstawia sed.
+;
+; Zastępuje `start.sh --pilnuj` — zadanie 4a.4 z TODO.md.
+[Unit]
+Description=DRON15 — serwer podglądu (strona, telemetria, archiwum)
+Documentation=file://@KATALOG@/README.md
+After=network-online.target dron15-mediamtx.service
+; `Wants`, nie `Requires`, dla MediaMTX: gdy serwer obrazu nie wstanie, strona
+; i telemetria mają działać dalej. Panel pokaże wtedy zgaszoną diodę MEDIAMTX
+; i to jest właściwa reakcja — nie zabieranie operatorowi wszystkiego naraz.
+Wants=network-online.target dron15-mediamtx.service
+
+; Limit prób podnoszenia. Od systemd 229 te dwa klucze należą do [Unit];
+; w [Service] dają ostrzeżenie przy ładowaniu jednostki.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@UZYTKOWNIK@
+WorkingDirectory=@KATALOG@
+Environment=NODE_ENV=production
+Environment=PORT=8095
+Environment=DATA_DIR=@DANE@
+Environment=ARCHIWUM_DIR=@DANE@/archiwum
+Environment=LOGI_DIR=@DANE@/logi
+; POZIOM=szczegol podnosi gadatliwość rejestru (dok/LOGI_I_BLEDY.md).
+Environment=POZIOM=info
+; Panel STACJA próbuje odczytać stan jednostki UŻYTKOWNIKA (kiosk). Bez wskazania
+; katalogu sesji `systemctl --user` nie ma z czym rozmawiać i kiosk pokazuje się
+; jako "nieznany". Podpowiedź, nie gwarancja — sesja i tak musi istnieć.
+Environment=XDG_RUNTIME_DIR=/run/user/@UID@
+
+ExecStart=@NODE@ @KATALOG@/server/index.mjs
+
+; on-failure, NIE always. Serwer po nieprzechwyconym wyjątku schodzi z pola
+; celowo, kodem 1 (server/rejestr.mjs) — wtedy podnosimy. Wyjście kodem 0 znaczy
+; "zatrzymany świadomie" i wznawiania nie wymaga. To ta sama zasada, którą
+; realizował dozorca w start.sh, tylko oddana systemd.
+; Przy usterce trwałej systemd przestaje próbować (limit w [Unit]) zamiast
+; zapychać kartę logami w nieskończonej pętli.
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+ProtectSystem=full
+PrivateTmp=yes
+; Serwer przy starcie przepisuje mediamtx.yml i web/public/zrodla.json,
+; więc te dwa katalogi muszą zostać zapisywalne mimo ProtectSystem.
+ReadWritePaths=@DANE@ @KATALOG@/mediamtx @KATALOG@/web/public
+
+; ⚠ CELOWY BRAK `NoNewPrivileges=yes` — TU, W ODRÓŻNIENIU OD dron15-mediamtx.
+;
+; `sudo` jest programem setuid i pod NoNewPrivileges nie podniesie uprawnień
+; w ogóle. Zostawienie tej opcji tutaj znaczyłoby, że przycisk RESTART w panelu
+; STACJA nigdy nie zadziała — i to bez żadnego czytelnego komunikatu, bo sudo
+; odmawia zanim cokolwiek się wydarzy.
+;
+; Co dostajemy w zamian za to ustępstwo: /etc/sudoers.d/dron15-panel wymienia
+; TRZY pełne ścieżki poleceń, każdą z nazwą usługi wpisaną na sztywno. Nie ma
+; tam gwiazdki, nie ma `stop`, nie ma `reboot`. Najgorsze, co przejęty żeton
+; administratora może zrobić tą drogą, to zrestartować usługę, którą i tak
+; wolno restartować z panelu.
+
+[Install]
+WantedBy=multi-user.target

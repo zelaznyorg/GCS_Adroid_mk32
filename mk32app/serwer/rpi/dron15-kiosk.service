@@ -1,0 +1,25 @@
+; Kiosk na monitorach HDMI stacji. JEDNOSTKA UŻYTKOWNIKA, nie systemowa —
+; instaluje ją `sh rpi/kiosk.sh --zainstaluj` do ~/.config/systemd/user/.
+; Systemowa nie ma dostępu do sesji graficznej i nie miałaby gdzie rysować.
+[Unit]
+Description=DRON15 — podgląd na monitorach (Chromium kiosk)
+Documentation=file://@KATALOG@/rpi/kiosk.sh
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=ADRES=@ADRES@
+; Kod zaproszenia dla monitorów. Bez niego kiosk pokaże ekran wejścia zamiast
+; obrazu — strona i strumień WHEP wymagają żetonu (rpi/kiosk.sh, nagłówek).
+; Ma być WIELOKROTNY i BEZTERMINOWY: każde okno ma własny profil Chromium.
+Environment=KOD=@KOD@
+ExecStart=/bin/sh @KATALOG@/rpi/kiosk.sh
+
+; always, w odróżnieniu od serwera: przeglądarka zamknięta przez człowieka albo
+; ubita przez OOM to na stacji zawsze usterka — kiosk ma stać otwarty.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

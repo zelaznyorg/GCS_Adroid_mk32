@@ -1,45 +1,64 @@
-# Lokalne instrukcje i pamięć konkretnego stanowiska
-CLAUDE.md
+# System operacyjny i edytory
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*~
 
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
 venv/
 
-# Edytory i system
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
+# Android / Gradle
+**/.gradle/
+**/build/
+**/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
 
-# Dane pracy i artefakty
-*.log
-*.pid
-*.sock
-*.tmp
-nagrania/
-zrzuty/
-build/
-dist/
+# Node / Vite
+**/node_modules/
+**/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Sekrety i konfiguracje konkretnej stacji
-.env
-.env.*
-!.env.example
+# Klucze, certyfikaty i lokalna konfiguracja
 *.key
 *.pem
 *.p12
 *.pfx
-*.local.json
-router.json
+mk32app/serwer/auto.crt
+mk32app/serwer/zrodla.json
+mk32app/serwer/dostep.json
+mk32app/serwer/archiwum/
+mk32app/serwer/logi/
+mk32app/serwer/mediamtx/mediamtx.yml
+mk32app/serwer/web/public/zrodla.json
 
-# Kopie tworzone przez instalator/łatkę
-*.przed-gcs
-*.bak
+# Dane wygenerowane i dane terenowe
+mk32app/kafelki/
+mk32app/teren/
+mk32app/logi_lot/
+mk32app/Aplikacja mobilna dla DRON/
+mk32app/Aplikacja mobilna dla DRON.zip
+
+# Dane konkretnego stanowiska i materiały robocze
+/CLAUDE.md
+/dok/
+/pidowanie/
+/plany/
+tools/logi/
+
+# Logi i pliki tymczasowe
+*.log
+*.tmp
+*.swp

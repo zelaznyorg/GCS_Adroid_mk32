@@ -1,0 +1,595 @@
+/* Styl podglądu — wariant D (dok/UI.md §9), ten sam co w kokpicie MK32.
+ *
+ * Podział plików:
+ *   Motyw.css  barwy, wymiary, kroje, tafla ze znacznikami narożnymi (= ui/Motyw.kt)
+ *   Hud.css    nakładka nad obrazem: pas górny, taśma, karty, pasek telemetrii
+ *   App.css    to, co NIE jest nakładką — rama ekranu, zasłona i panele
+ *
+ * Panele (Wejscie, Widzowie, Admin, Stacja) zostają na własnym układzie: są
+ * nieprzezroczyste, czytane z bliska i nie leżą na obrazie, więc gramatyka HUD-u
+ * ich nie dotyczy. Wspólne mają wyłącznie barwy z Motyw.css.
+ */
+
+.ekran {
+  position: fixed;
+  inset: 0;
+  background: var(--tlo);
+  color: var(--tekst);
+  font-family: "Segoe UI", "Roboto", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+/* Scena — obraz i to, co go dotyczy (zasłona ze stanem łącza).
+   Domyślnie wypełnia cały ekran, a dane leżą na niej. Na telefonie trzymanym
+   pionowo kurczy się do paska 16:9 u góry; przełącznik na dole tego pliku. */
+.scena {
+  position: absolute;
+  inset: 0;
+}
+
+.obraz {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* --- zasłona, gdy obrazu nie ma --- */
+
+.zaslona {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(7, 9, 11, 0.82);
+  text-align: center;
+  padding: 24px;
+}
+
+.stan-obrazu {
+  font-size: 20px;
+  letter-spacing: 0.14em;
+  padding: 10px 18px;
+  border: 1px solid var(--linia);
+}
+
+.stan-obrazu.blad,
+.stan-obrazu.brak_dekodera { color: var(--blokada); border-color: var(--blokada); }
+.stan-obrazu.ponawianie { color: var(--uwaga); border-color: var(--uwaga); }
+
+.podpowiedz {
+  max-width: 46ch;
+  color: var(--tekst-slaby);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* --- wspólne elementy paneli (Wejscie, Widzowie, Admin) --- */
+
+/* ⛔ TU SIEDZIAŁ BŁĄD ZGŁOSZONY PO PIERWSZYM DNIU UŻYTKOWANIA.
+   Było `justify-content: center` przy `overflow-y: auto`. Przewijalny kontener
+   z wyśrodkowaną zawartością OBCINA GÓRĘ i nie da się do niej dojechać — treść
+   wychodzi poza początek obszaru przewijania, a tam scroll nie sięga. Panel
+   administratora ma siedem sekcji, więc jego nagłówek z przyciskiem ZAMKNIJ
+   lądował poza zasięgiem i jedynym wyjściem było przeładowanie strony.
+
+   `flex-start` + `margin-block: auto` na karcie daje to samo wyśrodkowanie,
+   gdy karta się mieści, a przy dłuższej — pełny dostęp do góry. */
+.zaslona.panel {
+  justify-content: flex-start;
+  align-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+
+.zaslona.panel .karta { margin-block: auto; }
+
+/* Nagłówek przyklejony do góry karty: wyjście ma być widoczne ZAWSZE, bez
+   przewijania. Panel bez widocznego wyjścia jest panelem bez wyjścia. */
+.naglowek-panelu {
+  position: sticky;
+  top: -20px;                 /* kompensuje górny padding karty */
+  z-index: 2;
+  margin: -20px -24px 0;      /* rozciąga tło na całą szerokość karty */
+  padding: 20px 24px 12px;
+  background: var(--tafla);
+  border-bottom: 1px solid var(--linia);
+  flex-wrap: wrap;
+}
+
+.zakladki-paneli { gap: 4px; }
+.zakladki-paneli .przelacznik:disabled { opacity: 1; }
+
+.karta {
+  background: var(--tafla);
+  border: 1px solid var(--linia);
+  backdrop-filter: blur(3px);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+  max-width: 60ch;
+  width: 100%;
+}
+
+.karta.szeroka { max-width: 108ch; }
+
+.karta h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--tekst-slaby);
+}
+
+.karta section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.karta code {
+  font-family: "Consolas", "DejaVu Sans Mono", monospace;
+  font-size: 14px;
+  color: var(--tekst);
+}
+
+.naglowek-panelu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.przypis {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.przypis.blad { color: var(--uwaga); }
+.przypis.drobne { font-size: 11px; }
+.przypis.rozciagnij { flex: 1; }
+
+/* --- klawisz panelu --- */
+
+/* Przycisk w panelu, nie w nakładce. Klawisze nakładki mają własną klasę
+   `.klawisz` w Hud.css — inny wygląd, bo tamte leżą na obrazie, a te na tafli. */
+.przelacznik {
+  background: transparent;
+  color: var(--tekst);
+  border: 1px solid var(--linia);
+  padding: 8px 14px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  font-family: inherit;
+  cursor: pointer;
+  /* Cel dotykowy — obsługa w terenie, także w rękawicach (dok/UI.md §2). */
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.przelacznik:hover { background: var(--klawisz); }
+.przelacznik.wlaczony { color: var(--akcent); border-color: var(--akcent); }
+
+/* Etykieta pola formularza. Podpis w nakładce to `.etykieta-hud` (Motyw.css) —
+   jest o połowę mniejszy, bo tam czyta się go rzutem oka, a nie przy wypełnianiu. */
+.etykieta {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--tekst-slaby);
+}
+
+/* --- pola formularzy --- */
+
+.pole {
+  background: rgba(7, 9, 11, 0.6);
+  color: var(--tekst);
+  border: 1px solid var(--linia);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  min-height: 40px;
+}
+
+.pole.waskie { width: 7ch; }
+
+.pole-etykieta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--tekst-slaby);
+}
+
+.pole-etykieta.poziomo {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.06em;
+}
+
+.rzad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.rzad.rozstrzelony { align-items: center; }
+
+.przelacznik.drobny { min-height: 32px; padding: 4px 10px; font-size: 11px; }
+/* Czerwień wyłącznie tam, gdzie coś komuś zabieramy — kolor niesie znaczenie. */
+.przelacznik.pilne { color: var(--blokada); border-color: var(--blokada); }
+.przelacznik:disabled { opacity: 0.45; cursor: default; }
+
+/* --- listy i tabele --- */
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabela td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid rgba(150, 170, 190, 0.15);
+  vertical-align: middle;
+}
+
+.lista-widzow,
+.lista-adresow,
+.dziennik {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lista-widzow li,
+.lista-adresow li,
+.dziennik li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lista-widzow li.ja .imie { color: var(--ok); }
+.lista-widzow .imie { min-width: 12ch; }
+.lista-adresow .przypis { min-width: 9ch; }
+
+.dziennik { max-height: 30vh; overflow-y: auto; font-size: 12px; }
+.dziennik .przypis { min-width: 9ch; }
+
+.znacznik-zdarzenia {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tekst-slaby);
+  border: 1px solid var(--linia);
+  padding: 1px 6px;
+  min-width: 11ch;
+  text-align: center;
+}
+
+.znacznik-zdarzenia.odciecie,
+.znacznik-zdarzenia.odmowa { color: var(--blokada); border-color: var(--blokada); }
+.znacznik-zdarzenia.wejscie { color: var(--ok); border-color: var(--ok); }
+.znacznik-zdarzenia.archiwum { color: var(--uwaga); border-color: var(--uwaga); }
+
+/* Dziennik systemowy w panelu stacji. To jest surowe wyjście journalctl,
+   więc łamanie wierszy zabrałoby mu czytelność — zamiast tego przewijamy
+   w poziomie wewnątrz ramki, nigdy całą stroną. */
+.dziennik.systemowy {
+  max-height: 34vh;
+  overflow: auto;
+  white-space: pre;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--tekst-slaby);
+  border: 1px solid var(--linia);
+  padding: 8px;
+  margin: 6px 0;
+}
+
+.etykieta.blad { color: var(--blokada); }
+
+/* Zajętość archiwum. Pasek, a nie sama liczba — bo pytanie brzmi "ile jeszcze
+   zmieści się lotów", a na to odpowiada proporcja, nie gigabajty. */
+.pasek-miejsca {
+  height: 6px;
+  border: 1px solid var(--linia);
+  margin: 8px 0 4px;
+}
+
+.pasek-miejsca .wypelnienie {
+  height: 100%;
+  background: var(--tekst-slaby);
+}
+
+/* Kropka niesie rolę, nie ozdobę. */
+.kropka {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--linia);
+  background: var(--tekst-slaby);
+}
+
+.kropka.operator { background: var(--uwaga); border-color: var(--uwaga); }
+.kropka.admin { background: var(--ok); border-color: var(--ok); }
+
+.odznaka {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  border: 1px solid var(--linia);
+  padding: 1px 6px;
+  color: var(--tekst-slaby);
+}
+
+.odznaka.ty { color: var(--ok); border-color: var(--ok); }
+
+/* --- endpoint do przepisania ręcznie --- */
+
+.endpoint {
+  font-size: 26px !important;
+  letter-spacing: 0.04em;
+  color: var(--ok) !important;
+  border: 1px solid var(--ok);
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: all;
+  align-self: flex-start;
+  word-break: break-all;
+}
+
+.endpoint.maly { font-size: 14px !important; padding: 8px 10px; }
+
+.nowy-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--ok);
+  padding: 10px 12px;
+}
+
+/* --- ekran wejścia --- */
+
+.ekran.wejscie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.karta-wejscia {
+  background: var(--tafla);
+  border: 1px solid var(--linia);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 46ch;
+  width: 100%;
+}
+
+.karta-wejscia h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+@media (max-width: 640px) {
+}
+
+/* --- rejestr techniczny w panelu admina --- */
+
+.dziennik.rejestr {
+  max-height: 34vh;
+  font-family: "Consolas", "DejaVu Sans Mono", monospace;
+  font-size: 11px;
+}
+
+.dziennik.rejestr li { align-items: flex-start; }
+
+.tresc-wpisu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  word-break: break-word;
+}
+
+/* Stos wywołań jest tym, po co się do rejestru sięga — ale nie może zdominować listy. */
+.stos {
+  color: var(--tekst-slaby);
+  opacity: 0.75;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.znacznik-zdarzenia.poziom-BLAD { color: var(--blokada); border-color: var(--blokada); }
+.znacznik-zdarzenia.poziom-OSTRZ { color: var(--uwaga); border-color: var(--uwaga); }
+
+/* ===========================================================================
+   TELEFON W PIONIE — rama i scena
+   ===========================================================================
+
+   Reguły samej nakładki (pas górny, taśma, karty, liczby) siedzą w Hud.css,
+   w bloku o tej samej nazwie. Tutaj zostaje to, czym nakładka nie jest:
+   rama ekranu i kadr obrazu.
+
+   Obraz z ZR30 jest 16:9. Wpisany w telefon trzymany pionowo zajmuje ok. 30 %
+   wysokości, a reszta i tak byłaby czernią. Zamiast udawać pełną szybę wariantu D,
+   dzielimy ekran: obraz u góry w swoich proporcjach, dane pod nim, klawisze
+   na dole pod kciukiem. Gramatyka zostaje ta sama — zmienia się tylko rozkład. */
+
+@media (max-width: 820px) and (orientation: portrait) {
+  .ekran:not(.kino) {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Bezwładność przewijania na iOS; bez tego lista danych „klei się". */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ekran:not(.kino) .scena {
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+  }
+
+  /* Zasłona zajmuje teraz pasek 16:9, a nie cały ekran — mniej miejsca na tekst. */
+  .ekran:not(.kino) .zaslona:not(.panel) { padding: 10px; gap: 8px; }
+  .ekran:not(.kino) .zaslona:not(.panel) .stan-obrazu { font-size: 15px; padding: 6px 12px; }
+  .ekran:not(.kino) .zaslona:not(.panel) .podpowiedz { font-size: 12px; }
+
+}
+
+
+/* ---- MAPA ------------------------------------------------------------------
+   Podkład ciągnie przeglądarka widza wprost z internetu (patrz Mapa.jsx), więc
+   tutaj są wyłącznie wymiary i barwy znaczników. Leaflet wnosi własny arkusz. */
+
+.karta-mapy { max-width: 132ch; }
+
+.mapa-obszar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Mapa w panelu ma stałą, sensowną wysokość — bez tego rozpycha kartę
+     i wraca problem panelu, do którego nie da się dojechać. */
+  height: min(62vh, 620px);
+}
+
+.mapa-obszar.osobne { height: 100%; }
+
+.mapa-plotno {
+  flex: 1;
+  min-height: 240px;
+  border: 1px solid var(--linia);
+  background: var(--tlo);
+}
+
+.mapa-pasek {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mapa-odczyty { margin-left: auto; }
+.mapa-komunikat { margin: 0; }
+
+/* Znaczniki rysujemy sami, żeby trzymały się barw systemu zamiast domyślnych
+   niebieskich pinezek Leafletu. */
+.znacznik-drona svg { fill: var(--akcent, #6cf); stroke: none; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+.znacznik-domu svg  { fill: none; stroke: var(--ok, #7c7); stroke-width: 2; }
+
+/* Barw warstw wektorowych NIE ma tutaj — mapa rysuje je na kanwie, a kanwa nie
+   zna arkuszy stylów. Kolory idą przez opcje Leafletu w Mapa.jsx, odczytane
+   z tych samych zmiennych motywu. */
+
+/* Leaflet wstawia własne tło i typografię — sprowadzamy je do motywu. */
+.leaflet-container { background: #0b0e11; font-family: inherit; }
+.leaflet-control-attribution { background: rgba(7,9,11,.7) !important; color: var(--tekst-slaby) !important; font-size: 10px; }
+.leaflet-control-attribution a { color: var(--tekst-slaby) !important; }
+
+/* Okno oddokowane: sama treść, bez HUD-u i pasków. */
+.okno-osobne { display: flex; flex-direction: column; padding: 8px; gap: 8px; }
+.okno-osobne .obraz { flex: 1; width: 100%; object-fit: contain; }
+.okno-pasek { margin: 0; }
+
+
+/* ---- POKRĘTŁO STACJI --------------------------------------------------------
+
+   Przy stacji nie ma myszy ani klawiatury — jest enkoder obrotowy. Pokrętło
+   porusza ZWYKŁYM ogniskiem przeglądarki, więc wystarczy, żeby to ognisko było
+   naprawdę widać. To jest cała warstwa wizualna tej funkcji.
+
+   Domyślnie przeglądarka pokazuje obwódkę tylko przy sterowaniu klawiaturą
+   (`:focus-visible`). Tu potrzebujemy jej ZAWSZE, bo źródłem ogniska jest
+   pokrętło, a przeglądarka nie ma jak się o tym dowiedzieć. */
+
+/* Znacznik zakładany przez pokrętło. Nie polegamy tu na `:focus`, bo ten
+   przestaje pasować, gdy okno przeglądarki straci ognisko systemowe — a wtedy
+   pokrętło przesuwałoby ognisko niewidocznie. Zmierzone przy próbach. */
+.ognisko-pokretla {
+  outline: 2px solid var(--akcent) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(53, 199, 232, 0.22) !important;
+}
+
+.przelacznik:focus,
+.klawisz:focus,
+.pole:focus,
+.wybor:focus,
+.klawisz-wybor:focus,
+.zaslona.panel button:focus,
+.zaslona.panel select:focus,
+.zaslona.panel input:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: 2px;
+  /* Poświata, żeby ognisko dało się znaleźć wzrokiem na gęstym panelu
+     bez wodzenia palcem po ekranie. */
+  box-shadow: 0 0 0 4px rgba(53, 199, 232, 0.22);
+}
+
+/* Element, na którym stoi ognisko, ma być widoczny także wtedy, gdy panel jest
+   przewinięty gdzie indziej — stąd `scroll-margin`, żeby `scrollIntoView`
+   nie wsuwał go pod przyklejony nagłówek. */
+.zaslona.panel button,
+.zaslona.panel select,
+.zaslona.panel input { scroll-margin-top: 72px; scroll-margin-bottom: 16px; }
+
+/* Pasek trybu zmiany wartości. Pokazuje się TYLKO wtedy, gdy obrót przestaje
+   przechodzić między pozycjami, a zaczyna zmieniać liczbę — bo to jedyna chwila,
+   w której to samo pokrętło robi co innego. */
+.pasek-pokretla {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 6px 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--tlo);
+  background: var(--akcent);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Klawisz pokrętła: włączony, ale bez łączności z panelem = stan do zauważenia. */
+.klawisz.pilne { color: var(--blokada); }
+
+/* Klawisz ZAMKNIJ — tylko na stanowisku stacji (App.jsx: `jestStacja`).
+   Wyróżniony kolorem, bo kończy sesję: ma być rozpoznawalny z dwóch metrów,
+   tak samo jak kafelki pulpitu GCS. */
+.klawisz.zamknij-stacje {
+  color: var(--blad, #ff8a70);
+  border-color: color-mix(in srgb, var(--blad, #ff8a70) 45%, transparent);
+}
+.klawisz.zamknij-stacje:hover,
+.klawisz.zamknij-stacje.ognisko-pokretla {
+  background: color-mix(in srgb, var(--blad, #ff8a70) 16%, transparent);
+}

@@ -1,0 +1,14 @@
+{
+  "name": "dron15-serwer-podgladu",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Serwer podglądu obrazu z ZR30 i telemetrii MK32 dla DRON15 (etap M6).",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "konfiguracja": "node scripts/gen-config.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

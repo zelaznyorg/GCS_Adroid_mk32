@@ -1,0 +1,23 @@
+/* Minimalny reset. Cała warstwa wizualna siedzi w App.css. */
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #07090b;
+}
+
+body {
+  /* Podgląd bywa otwierany na telefonie w terenie — blokujemy przypadkowe
+     przeciąganie strony, obraz ma zostać na miejscu. */
+  overscroll-behavior: none;
+}

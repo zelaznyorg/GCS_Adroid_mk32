@@ -1,0 +1,22 @@
+# Uprawnienia panelu STACJA (web/src/Stacja.jsx → server/stacja.mjs).
+# Wzorzec instalowany przez rpi/instaluj.sh do /etc/sudoers.d/dron15-panel;
+# @UZYTKOWNIK@ podstawia sed, a plik przed założeniem przechodzi `visudo -c`.
+#
+# ⛔ TO JEST CAŁA LISTA. Trzy polecenia, każde z nazwą usługi wpisaną na sztywno.
+#
+# Nie ma tu `systemctl *` ani `systemctl restart dron15-*` i to nie jest przesada:
+# gwiazdka w sudoers oznacza, że wystarczy jedna dziura w warstwie wyżej (błąd
+# w sprawdzaniu nazwy, przechwycony żeton administratora), żeby panel stał się
+# powłoką z prawami roota. Przy trzech pełnych ścieżkach najgorsze, co może się
+# stać, to restart usługi, którą i tak wolno restartować.
+#
+# Czego tu celowo NIE MA:
+#   - `reboot` i `poweroff` — stacja stoi przy operatorze, a przez tunel
+#     wyłączenie jej jest nieodwracalne bez wizyty na miejscu,
+#   - `stop` i `disable` — panel ma podnosić, nie gasić,
+#   - `journalctl` — czytanie dziennika załatwia członkostwo w grupie `adm`,
+#     bez podnoszenia uprawnień.
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart dron15-mediamtx
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart dron15-gcs
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart dron15-mediamtx
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart dron15-gcs

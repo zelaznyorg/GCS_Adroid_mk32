@@ -1,0 +1,112 @@
+/* Zmienne wariantu D — odpowiednik `ui/Motyw.kt` z kokpitu MK32.
+ *
+ * Wartości przepisane z Kotlina co do liczby, żeby telefon i aparatura pokazywały
+ * ten sam kolor i ten sam wymiar. Gdy zmienia się `Motyw.kt`, zmienia się i ten plik —
+ * inaczej dwa ekrany tego samego systemu zaczynają się rozjeżdżać.
+ *
+ * Źródło: dok/UI.md §2 (barwy, kroje) i §9 (wymiary wariantu D).
+ * Jednostka: w Compose dp, tutaj px. Na telefonie i na aparaturze wychodzi na to samo,
+ * bo obie powierzchnie skalują się gęstością ekranu.
+ */
+
+:root {
+  /* --- barwy (Barwy w Motyw.kt) --- */
+  --tlo: #060809;
+
+  /* Tafla jest przezroczysta celowo: przez nią widać, co robi kamera. */
+  --tafla: rgba(4, 7, 10, 0.40);
+  --tafla-mocna: rgba(4, 7, 10, 0.65);
+  --tafla-pelna: rgba(7, 10, 12, 0.90);
+
+  --linia: rgba(255, 255, 255, 0.20);
+  --linia2: rgba(255, 255, 255, 0.10);
+
+  --tekst: #edf2f5;
+  --tekst-slaby: #9baab5;
+  --wygasly: #5e6c75;
+
+  --akcent: #35c7e8;
+  --ok: #35d07a;
+  --uwaga: #f5a623;
+  --blokada: #ff453a;
+
+  /* Klawisze są szybą, nie płytką — ledwo widoczne, mocniejsze pod palcem. */
+  --klawisz: rgba(255, 255, 255, 0.08);
+  --klawisz-pod: rgba(255, 255, 255, 0.24);
+
+  /* --- wymiary (Wymiary w Motyw.kt) --- */
+  --pas-stanu: 28px;
+  --tasma-kursu: 20px;
+  --tasma-kursu-szer: 460px;
+  --karta: 212px;
+  --karta-wys: 150px;
+  --pas-telemetrii: 78px;
+  --odstep: 8px;
+  --promien: 2px;
+  --cel-dotyku: 64px;
+
+  /* Znaczniki narożne tafli — dok/UI.md §2 „Kształt i odstęp". */
+  --znacznik: 10px;
+  --znacznik-grubosc: 2px;
+
+  /* --- kroje (Kroje w Motyw.kt) --- */
+  --krój-ogromny: 26px;   /* JEDNA wartość na ekran — wysokość */
+  --krój-duzy: 20px;
+  --krój-sredni: 16px;
+  --krój-pas: 15px;
+  --krój-baner: 18px;
+  --krój-tekst: 13px;
+  --krój-etykieta: 9px;
+}
+
+/* Tafla ze znacznikami narożnymi — odpowiednik `Modifier.tafla()` z Elementy.kt.
+   Zamiast pełnej ramki: linia włosowa na pół siły plus 10 px kreski w każdym rogu.
+   Osiem warstw tła, bo każdy róg to dwie kreski — poziom i pion. */
+.tafla {
+  background-color: var(--tafla);
+  box-shadow: inset 0 0 0 1px var(--linia2);
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia)),
+    linear-gradient(var(--linia), var(--linia));
+  background-size:
+    var(--znacznik) var(--znacznik-grubosc), var(--znacznik-grubosc) var(--znacznik),
+    var(--znacznik) var(--znacznik-grubosc), var(--znacznik-grubosc) var(--znacznik),
+    var(--znacznik) var(--znacznik-grubosc), var(--znacznik-grubosc) var(--znacznik),
+    var(--znacznik) var(--znacznik-grubosc), var(--znacznik-grubosc) var(--znacznik);
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+}
+
+/* Podpis pod wartością i pod ikoną — `Kroje.Podpis`.
+   Nazwa z sufiksem, bo `.etykieta` bez sufiksu należy do formularzy w panelach
+   (Wejscie.jsx, Admin.jsx) i ma tam inny rozmiar. */
+.etykieta-hud {
+  font-size: var(--krój-etykieta);
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--tekst-slaby);
+}
+
+/* Cyfry o stałej szerokości są obowiązkowe (dok/UI.md §2 „Typografia”).
+   Bez `tnum` wartość „11.1 → 9.8” przeskakuje w poziomie przy każdej zmianie. */
+.liczba {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--tekst);
+}
+
+/* Reguła wieku danych — zasada 6. Powyżej 2 s wartość przygasa, powyżej 10 s
+   serwer przysyła już null i pokazujemy kreski. Zamrożona liczba jest gorsza
+   niż brak liczby, więc stan „stary” musi być widoczny, a nie domyślany. */
+.liczba.stara { color: var(--wygasly); }

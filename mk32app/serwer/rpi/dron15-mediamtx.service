@@ -1,0 +1,39 @@
+; Serwer obrazu — remux RTSP z ZR30 na WebRTC/WHEP. Nic nie dekoduje i nie koduje.
+; Wzorzec instalowany przez rpi/instaluj.sh; @ZNACZNIKI@ podstawia sed.
+;
+; Osobna jednostka od serwera strony, bo to dwie różne awarie: gdy padnie obraz,
+; telemetria i panel mają dalej działać (i odwrotnie). Jedna jednostka
+; podnosząca oba procesy ukrywałaby, który z nich się wywrócił.
+[Unit]
+Description=DRON15 — serwer obrazu (MediaMTX)
+Documentation=file://@KATALOG@/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@UZYTKOWNIK@
+WorkingDirectory=@KATALOG@
+Environment=DATA_DIR=@DANE@
+Environment=ARCHIWUM_DIR=@DANE@/archiwum
+
+; mediamtx.yml jest GENEROWANY z zrodla.json — także tryb nagrywania obrazu.
+; Musi powstać przed startem MediaMTX, inaczej wystartuje ze starą konfiguracją.
+ExecStartPre=@NODE@ @KATALOG@/scripts/gen-config.mjs
+ExecStart=@KATALOG@/bin/mediamtx @KATALOG@/mediamtx/mediamtx.yml
+
+Restart=always
+RestartSec=5
+; Log idzie do journala. Własnego pliku MediaMTX tu nie zakłada —
+; `journalctl -u dron15-mediamtx` zastępuje logi/mediamtx.log ze start.sh.
+StandardOutput=journal
+StandardError=journal
+
+; Zapisywać wolno tylko tam, gdzie leżą nagrania i wygenerowana konfiguracja.
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
+ReadWritePaths=@DANE@ @KATALOG@/mediamtx @KATALOG@/web/public
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tło okna na czas startu — zanim Compose narysuje pierwszą klatkę.
+
+  Bez tego między otwarciem okna a pierwszą klatką jest **ponad sekunda czerni**,
+  po której dopiero pojawia się logo. Z tym plikiem logo jest od pierwszej chwili,
+  a ekran startowy w Compose tylko je przejmuje.
+
+  ⚠ Szerokość podana w dp liczy się według gęstości **systemowej** (MK32 melduje 320 dpi
+  = ×2), a nie tej, którą aplikacja sobie nadpisuje (×1,35 — patrz MainActivity.policzGestosc).
+  Bitmapa ma 480 px i rysuje sie 1:1, a Compose daje 356 dp × 1,348 = 480 px, więc logo nie skacze
+  w chwili przejęcia.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/black" />
+    <item
+        android:width="240dp"
+        android:height="185dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/logo_aerothink"
+            android:gravity="center" />
+    </item>
+</layer-list>

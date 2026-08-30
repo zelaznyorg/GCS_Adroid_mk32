@@ -1,170 +1,169 @@
-# Zasady pracy nad GCS Pulpit
+# Zasady pracy nad DRON15 GCS
 
-Historia repozytorium ma pozwalać ustalić: co zmieniono, dlaczego, na jakiej
-platformie to sprawdzono i jak bezpiecznie wrócić do poprzedniego stanu.
+Ten dokument obowiązuje przy każdym kolejnym commicie. System współpracuje z rzeczywistym
+statkiem powietrznym, dlatego czytelność zmian i możliwość ich zweryfikowania są częścią
+bezpieczeństwa, a nie tylko kwestią stylu.
 
-## 1. Gałąź i zakres
+## 1. Zasada jednego celu
 
-Po pierwszym commicie nie pracujemy bezpośrednio na `main`. Nazwa gałęzi:
+Jeden commit ma realizować jeden spójny cel. Nie należy łączyć poprawki protokołu,
+zmiany wyglądu, porządkowania nazw i aktualizacji zależności w jednym commicie.
 
-```text
-feat/nazwa-funkcji
-fix/krotki-opis
-docs/temat
-refactor/obszar
-test/obszar
-chore/obszar
+Przed rozpoczęciem:
+
+```powershell
+git status
+git pull --ff-only
+git switch -c fix/krotki-opis
 ```
 
-Jeden commit realizuje jeden cel. Kod, test regresji i dokumentacja tej samej
-zmiany należą do jednego commita. Niezwiązane formatowanie — do osobnego.
+Dozwolone prefiksy gałęzi: `feat/`, `fix/`, `docs/`, `test/`, `refactor/`,
+`build/`, `security/` i `chore/`.
 
-## 2. Komunikaty commitów
+## 2. Kolejność wykonania zmiany
 
-Format Conventional Commits:
+1. Opisz problem i warunek uznania go za rozwiązany.
+2. Ustal, którego elementu dotyczy zmiana: `android`, `serwer`, `web`, `rpi`,
+   `narzedzia`, `fc` albo `dok`.
+3. Wprowadź najmniejszą kompletną zmianę.
+4. Dodaj lub popraw test, jeżeli zachowanie da się sprawdzić automatycznie.
+5. Zaktualizuj dokumentację, gdy zmienia się protokół, konfiguracja, procedura,
+   bezpieczeństwo, interfejs użytkownika albo zachowanie operatora.
+6. Uruchom kontrole odpowiednie dla zmienionego elementu.
+7. Obejrzyj dokładnie pliki przygotowane do commita.
+8. Dopiero wtedy wykonaj commit i push.
 
-```text
-typ(zakres): krótki opis w trybie rozkazującym
+## 3. Kontrole przed commitem
+
+Android:
+
+```powershell
+cd mk32app\app
+C:\Gradle\gradle-8.4\bin\gradle.bat :cockpit:testDebugUnitTest
+C:\Gradle\gradle-8.4\bin\gradle.bat :cockpit:assembleDebug
 ```
 
-Typy: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`.
+PWA:
 
-Typowe zakresy: `pulpit`, `pokretlo`, `sieć`, `nagrania`, `katalog`, `sesja`,
-`instalator`, `systemd`, `docs`.
+```powershell
+cd mk32app\serwer\web
+npm ci
+npm run lint
+npm run build
+```
+
+Narzędzia Python:
+
+```powershell
+python -m compileall -q tools mk32app\narzedzia
+```
+
+Przed zatwierdzeniem zawsze:
+
+```powershell
+git status --short
+git diff --check
+git diff --cached --stat
+git diff --cached
+```
+
+Jeżeli zmiana dotyczy tylko jednego komponentu, wystarczą jego kontrole. W opisie
+commita albo pull requestu trzeba zapisać, co uruchomiono i czego nie można było
+sprawdzić bez sprzętu.
+
+## 4. Format komunikatu commita
+
+Stosujemy format:
+
+```text
+typ(obszar): krótkie polecenie po polsku
+```
+
+Typy:
+
+- `feat` — nowa funkcja,
+- `fix` — poprawka błędu,
+- `docs` — wyłącznie dokumentacja,
+- `test` — testy bez zmiany zachowania produkcyjnego,
+- `refactor` — przebudowa bez zmiany funkcji,
+- `perf` — wydajność,
+- `build` — budowanie i zależności,
+- `ci` — automatyczne kontrole,
+- `security` — bezpieczeństwo,
+- `chore` — pozostałe prace techniczne.
+
+Obszary: `android`, `mavlink`, `misja`, `mapy`, `kamera`, `siyi`, `serwer`,
+`web`, `rpi`, `fc`, `narzedzia` lub `dok`.
 
 Przykłady:
 
 ```text
-fix(sieć): obsłuż połączenie z ukrytym SSID
-feat(katalog): odśwież kafelki po zmianie pliku
-test(pokretlo): sprawdź oddanie ogniska po rozłączeniu
-docs(instalator): opisz powrót do sesji Raspberry Pi
+fix(mavlink): ponów żądanie brakującego punktu misji
+feat(rpi): dodaj kontrolę temperatury w panelu stacji
+docs(kamera): opisz przejście z SIYI na RTSP
 ```
 
-Nie używamy komunikatów `update`, `poprawki`, `działa`, `final` ani `wip` na
-gałęzi głównej.
-
-Jeżeli przyczyna nie mieści się w tytule, treść commita zawiera:
-
-```text
-fix(sieć): obsłuż połączenie z ukrytym SSID
-
-Interfejs wywoływał connect-hidden, lecz pomocnik uprzywilejowany znał tylko
-connect. Dodano jawne przekazanie hidden=yes do nmcli.
-
-Test: python3 -m unittest discover -s tests -v
-Sprzęt: niewymagany
-```
-
-## 3. Dokładna procedura następnego commita
-
-1. Pobierz aktualny `main` i utwórz gałąź:
-
-   ```bash
-   git switch main
-   git pull --ff-only
-   git switch -c fix/krotki-opis
-   ```
-
-2. Dla błędu zapisz oczekiwane zachowanie i, jeśli to możliwe, najpierw dodaj
-   test odtwarzający problem.
-
-3. Wprowadź jedną spójną zmianę. Nie dotykaj przy okazji obcych modułów.
-
-4. Uruchom kontrole:
-
-   ```bash
-   python3 -m unittest discover -s tests -v
-   python3 narzedzia/kontrola_nazw.py pulpit/gcs_pulpit/*.py pulpit/most/*.py pulpit/rpi/*.py
-   python3 narzedzia/kontrola_nazw.py pulpit/rpi/gcs-siec
-   sh -n pulpit/rpi/instaluj.sh pulpit/rpi/gcs-otoczenie pulpit/rpi/gcs-sesja pulpit/rpi/gcs-ui
-   git diff --check
-   ```
-
-5. Przy zmianie GTK, Wayland, systemd, GPIO, sieci albo nagrywania wykonaj próbę
-   na Raspberry Pi i zapisz wynik według `dok/BEZPIECZENSTWO.md`.
-
-6. Uzupełnij `CHANGELOG.md` i odpowiedni dokument, jeżeli zmienił się kontrakt,
-   konfiguracja, zależność lub procedura instalacji.
-
-7. Dodaj wyłącznie konkretne pliki i przejrzyj staging:
-
-   ```bash
-   git status --short
-   git add sciezka/do/kodu.py tests/test_modul.py CHANGELOG.md
-   git diff --staged --check
-   git diff --staged
-   ```
-
-8. Utwórz commit i wyślij gałąź:
-
-   ```bash
-   git commit -m "fix(sieć): obsłuż połączenie z ukrytym SSID"
-   git push -u origin fix/krotki-opis
-   ```
-
-9. Otwórz pull request. Scalaj po przejściu CI i kontroli ręcznej. Drobne commity
-   typu „fix review” można scalić przez **Squash and merge**.
-
-## 4. Wymagane testy
-
-| Zmiana | Minimum |
-|---|---|
-| czysta logika Python | test `unittest` bez GTK i sprzętu |
-| parser JSON / katalog aplikacji | dane poprawne, uszkodzone i brakujące pola |
-| most pokrętła | obrót, klik, rozłączenie i oddanie ogniska |
-| operacja sieciowa | test argumentów bez powłoki + próba na NetworkManagerze |
-| GTK / nawigacja | test ręczny myszą i pokrętłem na docelowej rozdzielczości |
-| nagrywanie | brak źródła, zerwanie, zatrzymanie i poprawność pliku |
-| systemd / labwc | instalacja, restart, awaria i droga powrotu |
-
-Brak automatycznego testu nie zwalnia z udokumentowania próby ręcznej.
+Pierwsza linia ma mieć najwyżej około 72 znaków, bez kropki na końcu. Przy zmianie
+nieoczywistej dodaj treść wyjaśniającą **dlaczego** została wykonana, ryzyko oraz
+sposób sprawdzenia. Zmianę niezgodną wstecznie oznacz `BREAKING CHANGE:`.
 
 ## 5. Dokumentowanie kodu
 
-Docstring jest wymagany dla publicznych klas, funkcji tworzących kontrakt między
-modułami oraz operacji mających skutki systemowe. Powinien określać:
+- Nazwy w kodzie opisują zamiar; komentarz wyjaśnia przyczynę, ograniczenie lub
+  nietypowe zachowanie, a nie powtarza instrukcji z następnej linii.
+- Publiczne klasy i funkcje związane z protokołem, bezpieczeństwem, stanem lotu
+  lub konfiguracją otrzymują KDoc/JSDoc/docstring.
+- Przy ramkach MAVLink i SIYI podaj identyfikator wiadomości/polecenia, jednostki,
+  zakres wartości, źródło definicji i warunek odrzucenia danych.
+- Przy liczbach czasowych i progach zapisz jednostkę w nazwie (`timeoutMs`, `ciszaS`)
+  albo bezpośrednio w dokumentacji.
+- Obejścia sprzętowe muszą zawierać model/wersję, objaw, uzasadnienie i bezpieczny
+  warunek usunięcia obejścia.
+- Dokumentacja stanu rozróżnia: **sprawdzone automatycznie**, **sprawdzone na
+  stanowisku**, **sprawdzone w locie** i **planowane**.
+- Nie zapisujemy jako faktu zachowania sprzętu, którego nie zmierzono.
 
-- wejście, wynik i możliwe wyjątki,
-- jednostki oraz dozwolone zakresy,
-- wątek wykonania, jeżeli kod dotyka GTK,
-- pliki, gniazda, GPIO albo procesy, które funkcja zmienia,
-- zachowanie po awarii i sposób wycofania,
-- czy operacja wymaga uprawnień administratora.
+## 6. Zmiany związane z bezpieczeństwem lotu
 
-Komentarz wyjaśnia **dlaczego**, ograniczenia i pułapki; nie przepisuje składni.
+Zmiany wysyłające komendy, zapisujące parametry, modyfikujące misję albo wpływające
+na RTL/LAND wymagają:
 
-W dokumentacji pomiarowej używamy oznaczeń:
+1. testu jednostkowego lub testu protokołu;
+2. sprawdzenia warunków blokujących i potwierdzenia operatora;
+3. próby bez śmigieł;
+4. zapisania wyniku testu stanowiskowego;
+5. osobnej, zatwierdzonej procedury przed pierwszą próbą w locie.
 
-- **FAKT** — wynik kodu, urządzenia albo powtarzalnego pomiaru,
-- **DEKLARACJA** — informacja producenta,
-- **INTERPRETACJA** — wniosek z faktów,
-- **HIPOTEZA** — rzecz jeszcze niesprawdzona.
+Narzędzia zapisujące do kontrolera muszą domyślnie działać jako `dry-run` i wymagać
+jawnej flagi, np. `--yes`, do wykonania zapisu. Nie wolno usuwać tych zabezpieczeń
+dla wygody testu.
 
-## 6. Kiedy aktualizować dokumentację
+## 7. Dane zabronione w repozytorium
 
-- `README.md` — wymagania, uruchomienie, zakres lub status,
-- `dok/ARCHITEKTURA.md` — moduły, przepływ danych i odpowiedzialność,
-- `dok/BEZPIECZENSTWO.md` — uprawnienia, procedury, droga powrotu,
-- `dok/UI_PULPIT.md` — zachowanie widoczne i wynik próby sprzętowej,
-- `CHANGELOG.md` — każda zmiana widoczna, instalacyjna lub operacyjna.
+Nie commitujemy kluczy, tokenów, certyfikatów lokalnych, plików dostępu, danych
+osobowych operatorów, publicznych adresów konkretnej stacji, kopii parametrów FC,
+surowych logów lotów, nagrań, kafelków map, danych terenu, APK, katalogów budowania,
+`node_modules` ani materiałów producenta, których licencja nie pozwala publikować.
 
-## 7. Czego nie commitujemy
+Przed commitem sprawdź, czy lista nie zawiera m.in. `*.key`, `*.pem`, `*.parm`,
+`*.bin`, `*.tlog`, `*.apk`, `local.properties`, `zrodla.json` lub `dostep.json`.
+Sam `.gitignore` nie zastępuje kontroli `git diff --cached`.
 
-- haseł Wi-Fi, tokenów dostępu, kluczy SSH i certyfikatów prywatnych,
-- `CLAUDE.md` ze stanem konkretnego stanowiska,
-- nagrań, logów, zrzutów zawierających dane operacyjne,
-- plików `*.local.json`, `.env`, `router.json`, kopii i plików tymczasowych,
-- `__pycache__`, środowisk wirtualnych i artefaktów buildów.
+## 8. Aktualizacja dokumentacji i changeloga
 
-Sekret znaleziony w historii trzeba unieważnić; usunięcie go w następnym commicie
-nie usuwa go z poprzedniego.
+Zmiana zachowania widocznego dla operatora, sposobu instalacji, formatu danych,
+portów, uprawnień lub procedury awaryjnej wymaga wpisu w sekcji `Unreleased`
+w `CHANGELOG.md`.
 
-## 8. Warunki przyjęcia pull requestu
+Dokumentację poprawia się w tym samym commicie co kod. Historycznych pomiarów nie
+przepisujemy: dodajemy datowaną korektę i wskazujemy, co zostało ponownie sprawdzone.
 
-- CI przechodzi,
-- zakres i powód są jasne,
-- istnieje test albo zapis próby ręcznej,
-- znana jest droga wycofania,
-- dokumentacja i changelog są aktualne,
-- nie ma sekretów ani danych konkretnego stanowiska.
+## 9. Push i przegląd
+
+```powershell
+git push -u origin nazwa-galezi
+```
+
+Gałąź `main` powinna przyjmować zmiany po przejściu automatycznych kontroli. Force-push
+na `main` jest zabroniony po ustanowieniu właściwej historii repozytorium. Wyjątkiem
+jest jednorazowa, jawnie zatwierdzona naprawa błędnego pierwszego commita.

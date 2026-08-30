@@ -1,0 +1,82 @@
+{
+  "_opis": "Reguły checklisty przedlotowej DRON 15. Wartości oczekiwane pochodzą z CLAUDE.md i z dok/ODNIESIENIE_QUAD_20260815.parm. Plik da się podmienić bez przebudowy aplikacji.",
+  "_wersja": "1.0 / 2026-08-18",
+
+  "parametry": [
+    { "id": "rama", "poziom": "blokada", "opis": "Rama Quad X",
+      "warunki": [ { "param": "FRAME_CLASS", "rowne": 1 }, { "param": "FRAME_TYPE", "rowne": 1 } ],
+      "komunikat_bledu": "MIKSLER OŚMIU SILNIKÓW NA MASZYNIE Z CZTEREMA. Popraw w Mission Plannerze: SETUP > Mandatory Hardware > Frame Type > Quad X, potem rozłącz i połącz." },
+
+    { "id": "silniki", "poziom": "blokada", "opis": "Mapowanie wyjść (lot 2026-08-16)",
+      "_uwaga": "36/33/34/35 pochodzi z logu lotu 2 z 2026-08-16 — TEGO mapowania maszyna użyła w powietrzu i lot był stabilny (błąd kąta sigma < 1,2 st.). Do 2026-08-26 stała tu wersja 34/36/33/35 z etapu 20 (2026-08-15 19:42), nigdy nieoblatana: checklista blokowała przez to poprawnie skonfigurowaną maszynę, a zarazem żądałaby ustawienia niesprawdzonego. Potwierdzone odczytem z FC 2026-08-26. Patrz CLAUDE.md, sekcja 1.",
+      "warunki": [ { "param": "SERVO1_FUNCTION", "rowne": 36 }, { "param": "SERVO2_FUNCTION", "rowne": 33 },
+                   { "param": "SERVO3_FUNCTION", "rowne": 34 }, { "param": "SERVO4_FUNCTION", "rowne": 35 } ],
+      "komunikat_bledu": "Kolejność inna niż oblatana 2026-08-16: 1 tył prawy, 2 przód prawy, 3 tył lewy, 4 przód lewy." },
+
+    { "id": "wyjscia_zbedne", "poziom": "ostrzezenie", "opis": "Wyjścia 5–16 nieużywane",
+      "warunki": [ { "param_zakres": "SERVO5_FUNCTION..SERVO16_FUNCTION", "rowne": 0 } ] },
+
+    { "id": "rtl", "poziom": "blokada", "opis": "RTL 50 m, minimalne wznoszenie 5 m",
+      "warunki": [ { "param": "RTL_ALT", "rowne": 5000 }, { "param": "RTL_CLIMB_MIN", "rowne": 500 },
+                   { "param": "RTL_ALT_FINAL", "rowne": 0 } ] },
+
+    { "id": "failsafe_gaz", "poziom": "blokada", "opis": "Próg failsafe poniżej minimum RC",
+      "warunki": [ { "param": "FS_THR_ENABLE", "rowne": 1 },
+                   { "wyrazenie": "RC3_MIN - FS_THR_VALUE", "wieksze_niz": 20 } ],
+      "komunikat_bledu": "FS_THR_VALUE musi leżeć poniżej RC3_MIN z zapasem — inaczej failsafe albo nie zadziała, albo zatrzaśnie się na ziemi." },
+
+    { "id": "kalibracja_acc", "poziom": "ostrzezenie", "opis": "Pełna kalibracja 6-pozycyjna",
+      "warunki": [ { "param_zakres": "INS_ACCSCAL_X..INS_ACCSCAL_Z", "rozne_od": 1.0, "tolerancja": 0.0005 } ],
+      "komunikat_bledu": "Skale równe 1,000 to sygnatura kalibracji uproszczonej." },
+
+    { "id": "poziomowanie", "poziom": "ostrzezenie", "opis": "Poziomowanie",
+      "warunki": [ { "param": "AHRS_TRIM_X", "modul_mniejszy_niz_stopni": 1.0 },
+                   { "param": "AHRS_TRIM_Y", "modul_mniejszy_niz_stopni": 1.0 } ],
+      "komunikat_bledu": "Duży trim może znaczyć, że „Calibrate Level” zrobiono na krzywym podłożu." },
+
+    { "id": "glowica", "poziom": "ostrzezenie", "opis": "Głowica na SERIAL2",
+      "warunki": [ { "param": "MNT1_TYPE", "rowne": 8 }, { "param": "SERIAL2_PROTOCOL", "rowne": 8 } ],
+      "komunikat_bledu": "Sterowanie głowicą z kokpitu idzie po UDP i działa niezależnie; to dotyczy ROI i zadań kamery w misji." },
+
+    { "id": "datalink", "poziom": "ostrzezenie", "opis": "Datalink MK32 z blokadą degradacji stawek",
+      "warunki": [ { "param": "SERIAL6_PROTOCOL", "rowne": 2 }, { "param": "SERIAL6_OPTIONS", "rowne": 4096 } ] },
+
+    { "id": "nawigacja", "poziom": "informacja", "opis": "Kurs wyłącznie z GNSS, brak kompasu",
+      "warunki": [ { "param": "EK3_SRC1_YAW", "rowne": 2 }, { "param": "COMPASS_USE", "rowne": 0 } ],
+      "komunikat_bledu": "Konfiguracja świadoma. Utrata GNSS = utrata kursu, pozycji i RTL. Plan awaryjny: AltHold." },
+
+    { "id": "gnss_baza", "poziom": "blokada", "opis": "Geometria bazy GNSS",
+      "warunki": [ { "param": "GPS1_TYPE", "rowne": 25 }, { "param": "GPS1_MB_TYPE", "rowne": 1 },
+                   { "param": "GPS1_MB_OFS_X", "rowne": 0.4, "tolerancja": 0.01 } ],
+      "komunikat_bledu": "GPS1_MB_OFS_X=0 zdarzało się po wgraniu pliku parametrów: kurs byłby liczony z zerowej bazy." }
+  ],
+
+  "telemetria": [
+    { "id": "lacze", "poziom": "blokada", "opis": "Telemetria żywa",
+      "warunek": { "pole": "lacze.zywe", "prawda": true } },
+
+    { "id": "kurs_gnss", "poziom": "blokada", "opis": "Kurs z bazy GNSS dostępny",
+      "warunek": { "pole": "gnss.kurs_dostepny", "prawda": true },
+      "komunikat_bledu": "Bez kursu nie ma pozycji poziomej ani RTL. Pod dachem to normalne — wynieś maszynę." },
+
+    { "id": "satelity", "poziom": "blokada", "opis": "Liczba satelitów",
+      "warunek": { "pole": "gnss.satelity", "co_najmniej": 12 } },
+
+    { "id": "hdop", "poziom": "ostrzezenie", "opis": "Geometria GNSS",
+      "warunek": { "pole": "gnss.hdop", "najwyzej": 1.2 } },
+
+    { "id": "ekf", "poziom": "blokada", "opis": "Flagi EKF3",
+      "warunek": { "pole": "ekf.flagi", "maska_ustawiona": "0x0037" },
+      "komunikat_bledu": "Brak pozycji poziomej albo aktywny CONST_POS_MODE." },
+
+    { "id": "wariancja_kursu", "poziom": "ostrzezenie", "opis": "Wariancja kursu",
+      "warunek": { "pole": "ekf.wariancja_kursu", "najwyzej": 0.3 } },
+
+    { "id": "napiecie_gorne", "poziom": "ostrzezenie", "opis": "Górny limit ZR30 i air unitu",
+      "warunek": { "pole": "bateria.napiecie", "najwyzej": 25.2 },
+      "komunikat_bledu": "6S w pełni naładowany to dokładnie 25,2 V — zero marginesu." },
+
+    { "id": "napiecie_dolne", "poziom": "blokada", "opis": "Dolny próg napięcia",
+      "warunek": { "pole": "bateria.napiecie", "co_najmniej": 22.2 } }
+  ]
+}

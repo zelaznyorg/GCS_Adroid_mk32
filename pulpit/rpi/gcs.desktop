@@ -1,5 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=GCS — stacja naziemna
-Comment=Pulpit GCS zamiast pulpitu Raspberry Pi OS
-Exec=/usr/local/bin/gcs-sesja

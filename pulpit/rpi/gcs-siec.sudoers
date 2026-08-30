@@ -1,9 +1,0 @@
-# Pulpit GCS — wąskie prawo do zarządzania siecią.
-#
-# ⛔ BEZ GWIAZDKI I BEZ `nmcli` WPROST. Wskazany jest JEDEN plik, który sam
-# pilnuje, co wolno: włączenie i wyłączenie radia, skan, połączenie z siecią
-# i usunięcie zapisanego połączenia. Nic więcej tą drogą nie przejdzie.
-#
-# Zakłada to `rpi/instaluj.sh`, zawsze po sprawdzeniu przez `visudo -c`:
-# uszkodzony plik w sudoers.d potrafi zablokować `sudo` na całej maszynie.
-@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/local/sbin/gcs-siec

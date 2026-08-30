@@ -1,0 +1,78 @@
+# Serwer posredniczacy DRON15 — konfiguracja MediaMTX
+#
+# Po co on jest: karta SIM w MK32 dostaje adres za CGNAT operatora, wiec nikt nie polaczy
+# sie do aparatury z zewnatrz. Ruch musi WYCHODZIC z MK32 na maszyne o stalym adresie.
+# Ta maszyna przyjmuje strumien po SRT i rozdaje go dalej — przegladarkom (WebRTC/HLS),
+# odtwarzaczom (RTSP/RTMP) i drugiemu monitorowi.
+#
+# Uruchomienie (dowolny VPS z publicznym IP):
+#   docker run --rm -it --network host \
+#     -v $PWD/mediamtx.yml:/mediamtx.yml bluenviron/mediamtx
+#
+# Wysylka z MK32 albo z laptopa:
+#   python restream.py srt --cel ADRES_SERWERA:8890 --haslo TAJNE_HASLO
+#
+# Odbior:
+#   przegladarka  http://ADRES_SERWERA:8889/dron15
+#   VLC / QGC     rtsp://ADRES_SERWERA:8554/dron15
+#
+# UWAGA: ponizsze hasla sa przykladowe. Zmienic przed pierwszym uruchomieniem.
+
+logLevel: info
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+
+# --- wejscie: SRT z MK32 -------------------------------------------------------
+srt: yes
+srtAddress: :8890
+
+# --- wyjscia -------------------------------------------------------------------
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+webrtc: yes
+webrtcAddress: :8889
+# Publiczny adres serwera; bez tego przegladarka za NAT-em nie zestawi polaczenia.
+webrtcAdditionalHosts: [ZMIEN_NA_ADRES_SERWERA]
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsPartDuration: 200ms
+hlsSegmentDuration: 1s
+
+rtmp: no          # RTMP nie niesie H.265 — wlaczyc tylko przy strumieniu H.264
+
+# --- uwierzytelnianie ----------------------------------------------------------
+# Bez tego kazdy, kto zna adres, oglada lot i moze podstawic wlasny obraz.
+authInternalUsers:
+  - user: dron15
+    pass: ZMIEN_TO_HASLO_NADAWCY
+    ips: []
+    permissions:
+      - action: publish
+        path: dron15
+
+  - user: obserwator
+    pass: ZMIEN_TO_HASLO_WIDZA
+    ips: []
+    permissions:
+      - action: read
+        path: dron15
+
+paths:
+  dron15:
+    source: publisher
+    # Zapis lotu na serwerze — do korelacji z logami pokladowymi z dok\logi
+    record: yes
+    recordPath: ./nagrania/dron15_%Y-%m-%d_%H-%M-%S
+    recordFormat: fmp4
+    recordSegmentDuration: 10m
+    recordDeleteAfter: 720h
+
+  # Strumien zapasowy o mniejszej przeplywnosci, gdyby 4G nie wyrabialo
+  dron15_low:
+    source: publisher
+    record: no
