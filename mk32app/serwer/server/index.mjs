@@ -34,6 +34,10 @@ import { Telemetria } from "./telemetria.mjs";
 import { Archiwum } from "./archiwum.mjs";
 import * as stacja from "./stacja.mjs";
 import * as trasy from "./trasy.mjs";
+import * as nadawanie from "./nadawanie.mjs";
+import { MostDji, PORT_MQTT } from "./dji.mjs";
+import * as djiKonf from "./dji.mjs";
+import { OdbiorZrzutu, PORT_ZRZUTU } from "./zrzut.mjs";
 import { Pokretlo } from "./pokretlo.mjs";
 
 const PORT = Number(process.env.PORT) || 8095;
@@ -86,6 +90,12 @@ app.use("/api", (req, res, next) => {
 let ustArchiwum = readArchiwum();
 const archiwum = new Archiwum(ustArchiwum);
 const telemetria = new Telemetria({ ...readTelemetria(), archiwum });
+
+// Drugie źródło telemetrii: drony DJI przez Cloud API. Ten sam kształt stanu,
+// więc strona nie musi wiedzieć, na co patrzy (dok/DJI.md §3).
+const dji = new MostDji(() => nadawanie.haslo());
+// Obraz z ekranu aparatury DJI — nasz APK na kontrolerze (dok/DJI.md §7).
+const zrzut = new OdbiorZrzutu(() => nadawanie.haslo(), "dji");
 
 /**
  * Pokrętło stacji. Przy maszynie nie ma myszy ani klawiatury — jest enkoder
@@ -195,7 +205,20 @@ app.get("/api/status", wymagaj("widz"), wrap(async (_req, res) => {
 
 // ---- API: telemetria + obecność ----
 
-app.get("/api/stan", wymagaj("widz"), (_req, res) => res.json(telemetria.stan()));
+/**
+ * Który dostawca telemetrii obsługuje wybrane źródło obrazu.
+ *
+ * Stacja obsługuje dwie różne maszyny naraz: DRON 15 gada MAVLinkiem przez MK32,
+ * a drony DJI — Cloud API po MQTT. Kształt stanu jest ten sam, więc wystarczy
+ * wskazać właściwe źródło; strona, HUD i mapa nie muszą o tym wiedzieć.
+ */
+function telemetriaDla(zrodlo) {
+  return String(zrodlo || "").startsWith("dji") ? dji : telemetria;
+}
+
+app.get("/api/stan", wymagaj("widz"), (req, res) =>
+  res.json(telemetriaDla(req.query.zrodlo).stan())
+);
 
 // Kto teraz ogląda. Widz dostaje imiona i strumienie, bez adresów (decyzja 8).
 app.get("/api/widzowie", wymagaj("widz"), (req, res) => {
@@ -223,6 +246,9 @@ app.get("/api/telemetria", (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
+  // Źródło wybiera nie tylko obraz, ale i telemetrię — patrz `telemetriaDla`.
+  const dostawca = telemetriaDla(req.query.zrodlo);
+
   const idPol = obecnosc.dolacz({
     zetonId: kto.id,
     imie: kto.imie,
@@ -236,7 +262,7 @@ app.get("/api/telemetria", (req, res) => {
   res.write(`event: polaczenie\ndata: ${JSON.stringify({ id: idPol, imie: kto.imie, rola: kto.rola })}\n\n`);
 
   const timer = setInterval(() => {
-    res.write(`data: ${JSON.stringify(telemetria.stan())}\n\n`);
+    res.write(`data: ${JSON.stringify(dostawca.stan())}\n\n`);
   }, Math.round(1000 / HZ_STANU));
 
   let zamkniete = false;
@@ -290,6 +316,17 @@ app.post("/api/mtx-auth", (req, res) => {
 
   // Publikować do nas nikt nie ma prawa — kamera jest źródłem pobieranym,
   // nie nadawcą. Zostaje samo czytanie.
+  // Publikować wolno WYŁĄCZNIE źródłom, które same wypychają obraz (drony DJI):
+  // pod ścieżki z listy i osobnym hasłem nadawania, nigdy żetonem widza.
+  // Kamera pokładowa zostaje źródłem POBIERANYM — dla niej nic się nie zmienia.
+  if (action === "publish") {
+    if (nadawanie.wolnoNadawac(path, password)) {
+      rejestr.info("nadawanie", `źródło nadaje pod ścieżkę ${path}`, { ip: czystyIp(ip) });
+      return res.status(200).end();
+    }
+    dostep.zapiszZdarzenie("odmowa", `odmowa nadawania (${path || "?"})`, { ip: czystyIp(ip) });
+    return res.status(401).end();
+  }
   if (action && action !== "read") return res.status(401).end();
 
   const kto = dostep.sprawdzZeton(`${user}.${password}`);
@@ -309,6 +346,82 @@ app.post("/api/mtx-auth", (req, res) => {
 //
 // Adres publiczny stacji to adres bramy do sieci — widzowi do niczego nie jest
 // potrzebny, a wiedza o nim jest warta więcej niż wygoda. Stąd rola admina.
+// Konfiguracja dla strony, którą otwiera DJI Pilot 2 (`web/public/dji.html`).
+//
+// ⛔ Ten punkt NIE może wymagać żetonu widza: aparatura DJI go nie ma i mieć nie
+// będzie. Zamiast tego pilnuje go klucz — to samo hasło urządzenia, które i tak
+// wraca w odpowiedzi. Kto zna klucz, ten i tak mógłby się połączyć z brokerem,
+// więc nic nowego nie oddajemy; kto go nie zna, nie dostaje nic.
+app.get("/api/dji/konfiguracja", (req, res) => {
+  const klucz = String(req.query.k || "");
+  const oczekiwany = nadawanie.haslo();
+  if (klucz.length !== oczekiwany.length || klucz !== oczekiwany) {
+    dostep.zapiszZdarzenie("odmowa", "odmowa konfiguracji DJI", { ip: czystyIp(req.ip) });
+    return res.status(401).json({ blad: "Zły klucz." });
+  }
+  const u = djiKonf.ustawienia();
+  const gospodarz = String(req.headers.host || "").split(":")[0];
+  res.json({
+    // Pilot 2 wymaga przedrostka tcp:// albo ws:// — bez niego moduł się nie ładuje.
+    mqtt: `tcp://${gospodarz}:${PORT_MQTT}`,
+    uzytkownik: u.uzytkownik,
+    haslo: oczekiwany,
+    appId: u.appId,
+    appKey: u.appKey,
+    licencja: u.licencja,
+    nazwaPlatformy: u.nazwaPlatformy,
+    nazwaObszaru: u.nazwaObszaru,
+    opis: u.opis,
+    obszarId: u.obszarId,
+  });
+});
+
+app.get("/api/zrzut", wymagaj("admin"), (req, res) => {
+  const gospodarz = String(req.headers.host || "").split(":")[0];
+  res.json({
+    ...zrzut.stan(),
+    // Adres do wpisania w APK na aparaturze.
+    adres: `${gospodarz}:${PORT_ZRZUTU}`,
+    haslo: nadawanie.haslo(),
+  });
+});
+
+app.get("/api/dji/ustawienia", wymagaj("admin"), (req, res) => {
+  const u = djiKonf.ustawienia();
+  const gospodarz = String(req.headers.host || "").split(":")[0];
+  res.json({
+    ...u,
+    gotowe: djiKonf.gotowe(),
+    // Adres do wpisania w aparaturze: Pilot 2 → Cloud Service → Open Platforms.
+    adresDlaPilota: `http://${gospodarz}:${Number(process.env.PORT) || 8095}/dji.html?k=${nadawanie.haslo()}`,
+    brokerMqtt: `tcp://${gospodarz}:${PORT_MQTT}`,
+  });
+});
+
+app.post("/api/dji/ustawienia", wymagaj("admin"), (req, res) => {
+  const u = djiKonf.ustaw(req.body || {});
+  rejestr.info("dji", "zmieniono ustawienia wpięcia DJI", { gotowe: djiKonf.gotowe() });
+  res.json({ ...u, gotowe: djiKonf.gotowe() });
+});
+
+app.get("/api/nadawanie", wymagaj("admin"), (req, res) => {
+  // Adres do wpisania w aparaturze DJI. Niesie hasło, więc widzowi go nie pokazujemy.
+  const gospodarz = String(req.headers.host || "").split(":")[0] || "192.168.88.30";
+  res.json({
+    haslo: nadawanie.haslo(),
+    sciezki: nadawanie.SCIEZKI_NADAWANIA,
+    adresy: nadawanie.SCIEZKI_NADAWANIA.map(
+      (s) => `rtmp://${gospodarz}:1935/${s}?user=dji&pass=${nadawanie.haslo()}`
+    ),
+  });
+});
+
+app.post("/api/nadawanie/nowe-haslo", wymagaj("admin"), (_req, res) => {
+  const h = nadawanie.nowHaslo();
+  rejestr.ostrzezenie("nadawanie", "wymieniono hasło nadawania — stare adresy przestały działać");
+  res.json({ haslo: h });
+});
+
 app.get("/api/adresy", wymagaj("admin"), wrap(async (_req, res) => {
   const adresy = [];
   for (const [nazwa, lista] of Object.entries(networkInterfaces())) {
@@ -722,6 +835,8 @@ async function start() {
   const timerMeldunku = setInterval(meldujPanelowi, 30000);
   timerMeldunku.unref?.();
   telemetria.start();
+  zrzut.start();
+  dji.start().catch((e) => rejestr.ostrzezenie("dji", "most DJI nie wstal", { blad: e.message }));
 
   const serwer = app.listen(PORT, () => rejestr.info("start", `nasłuch http://0.0.0.0:${PORT}`));
   serwer.on("error", (e) => {
@@ -760,6 +875,8 @@ function meldujPanelowi() {
 function posprzataj() {
   pokretlo.stop();
   telemetria.stop();
+  dji.stop();
+  zrzut.stop();
   // Zamyka bieżący .tlog. Bez tego ostatnie ramki zostają w buforze strumienia
   // i nagranie kończy się kilka sekund wcześniej, niż lot.
   archiwum.stop();

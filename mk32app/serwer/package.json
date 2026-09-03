@@ -9,6 +9,7 @@
     "konfiguracja": "node scripts/gen-config.mjs"
   },
   "dependencies": {
+    "aedes": "^1.1.1",
     "express": "^4.21.2"
   }
 }

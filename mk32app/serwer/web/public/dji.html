@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRON 15 — wpięcie DJI Pilot 2</title>
+<!--
+  Strona, którą otwiera DJI Pilot 2 (Cloud Service → Open Platforms → adres tej strony).
+
+  ### Co ona robi
+
+  Pilot 2 wstawia w swój webview obiekt `window.djiBridge`. Ta strona wykonuje nim
+  kolejno to, czego wymaga dokumentacja Cloud API:
+
+    1. platformVerifyLicense(appId, appKey, license)   — bez tego NIC dalej nie zadziała
+    2. platformSetInformation(nazwa, obszar, opis)     — podpisy w interfejsie Pilota
+    3. platformSetWorkspaceId(uuid)                    — identyfikator obszaru roboczego
+    4. platformLoadComponent("thing", {host, username, password, connectCallback})
+       — to jest moment, w którym Pilot 2 łączy się z NASZYM brokerem MQTT
+
+  Od tej chwili aparatura sama publikuje telemetrię na `thing/product/{sn}/osd`,
+  a `server/dji.mjs` przekłada ją na nasz stan (dok/DJI.md §3).
+
+  ### ⛔ Czego ta strona NIE robi
+
+  Nie ładuje modułu sterowania (DRC) ani nie wysyła poleceń do maszyny. Obowiązuje ta
+  sama zasada, co przy DRON 15: stacja patrzy, nie rozkazuje.
+
+  ### ⚠ Licencja DJI jest warunkiem koniecznym
+
+  `appId`, `appKey` i `license` pochodzą z konta deweloperskiego DJI (aplikacja typu
+  „Cloud API"). Bez nich `platformVerifyLicense` zwraca błąd i Pilot 2 nie załaduje
+  modułu chmurowego — żadna ilość poprawnej konfiguracji po naszej stronie tego nie
+  obejdzie. Wartości wpisuje administrator w panelu stacji; serwer podaje je tej
+  stronie przez /api/dji/konfiguracja.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 16px;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0e1411; color: #e8efe9;
+  }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .pod { color: #8f9a92; font-size: 13px; margin-bottom: 18px; }
+  .krok {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; margin-bottom: 8px;
+    background: #161d19; border: 1px solid #202a25; border-radius: 8px;
+  }
+  .znak { width: 22px; flex: none; font-weight: 700; text-align: center; }
+  .czeka  { color: #8f9a92; }
+  .idzie  { color: #ffb000; }
+  .dobrze { color: #7de08e; }
+  .zle    { color: #ff8a70; }
+  .tresc { flex: 1; min-width: 0; }
+  .nazwa { font-weight: 600; }
+  .szczegol { font-size: 12px; color: #8f9a92; word-break: break-word; margin-top: 2px; }
+  .uwaga {
+    margin-top: 16px; padding: 12px; border-radius: 8px;
+    background: #2a1512; border: 1px solid #5e2a20; color: #ffb4a0; font-size: 13px;
+  }
+  button {
+    margin-top: 14px; width: 100%; padding: 12px;
+    background: #1d2b23; color: #e8efe9; border: 1px solid #2f4438;
+    border-radius: 8px; font-size: 15px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <h1>DRON 15 — stacja naziemna</h1>
+  <div class="pod" id="pod">Łączenie aparatury z telemetrią stacji…</div>
+  <div id="kroki"></div>
+  <div class="uwaga" id="uwaga" hidden></div>
+  <button id="ponow" hidden>SPRÓBUJ PONOWNIE</button>
+
+<script>
+// Kroki wypisujemy na ekranie, bo przy stacji i w polu nie ma konsoli przeglądarki,
+// a „nie działa" bez wskazania miejsca jest bezużyteczne.
+const KROKI = [
+  ["most",     "Łączność z DJI Pilot 2"],
+  ["ustaw",    "Ustawienia stacji"],
+  ["licencja", "Licencja Cloud API"],
+  ["podpisy",  "Nazwa platformy i obszaru"],
+  ["chmura",   "Moduł chmurowy (MQTT)"],
+  ["polaczone","Telemetria płynie"],
+];
+const stan = {};
+const el = document.getElementById("kroki");
+for (const [id, nazwa] of KROKI) {
+  el.insertAdjacentHTML("beforeend",
+    `<div class="krok"><div class="znak czeka" id="z-${id}">•</div>
+     <div class="tresc"><div class="nazwa">${nazwa}</div>
+     <div class="szczegol" id="s-${id}">czeka</div></div></div>`);
+}
+function krok(id, jak, tekst) {
+  stan[id] = jak;
+  const z = document.getElementById("z-" + id);
+  const s = document.getElementById("s-" + id);
+  if (!z) return;
+  z.className = "znak " + jak;
+  z.textContent = jak === "dobrze" ? "✓" : jak === "zle" ? "✕" : jak === "idzie" ? "…" : "•";
+  if (tekst) s.textContent = tekst;
+}
+function uwaga(tekst) {
+  const u = document.getElementById("uwaga");
+  u.hidden = false;
+  u.textContent = tekst;
+  document.getElementById("ponow").hidden = false;
+}
+
+// Pilot 2 zwraca z JSBridge napis z JSON-em: {"code":0,"message":"","data":...}.
+// `code === 0` znaczy powodzenie. Zwykła przeglądarka nie ma `djiBridge` wcale.
+function odpowiedz(surowa) {
+  if (surowa == null) return { code: -1, message: "brak odpowiedzi" };
+  if (typeof surowa === "object") return surowa;
+  try { return JSON.parse(surowa); } catch { return { code: -1, message: String(surowa) }; }
+}
+
+window.onThingConnect = function (stanPolaczenia) {
+  // Pilot 2 woła to sam przy każdej zmianie stanu połączenia MQTT.
+  const w = odpowiedz(stanPolaczenia);
+  const ok = w.code === 0 || w.data === true || w.data === "true";
+  krok("polaczone", ok ? "dobrze" : "zle",
+       ok ? "aparatura publikuje telemetrię do stacji" : "moduł chmurowy zgłasza brak połączenia");
+  if (ok) document.getElementById("pod").textContent = "Gotowe — wróć do Pilota i lataj.";
+};
+
+async function podlacz() {
+  document.getElementById("uwaga").hidden = true;
+  document.getElementById("ponow").hidden = true;
+
+  const most = window.djiBridge;
+  if (!most || typeof most.platformVerifyLicense !== "function") {
+    krok("most", "zle", "ta strona nie jest otwarta w DJI Pilot 2");
+    uwaga("Otwórz ten adres w DJI Pilot 2: Cloud Service → Open Platforms. " +
+          "W zwykłej przeglądarce nie ma czego podłączać.");
+    return;
+  }
+  krok("most", "dobrze", "webview Pilota 2 wykryty");
+
+  krok("ustaw", "idzie", "pobieram z serwera stacji");
+  let k;
+  try {
+    const r = await fetch("/api/dji/konfiguracja", { cache: "no-store" });
+    if (!r.ok) throw new Error("serwer odpowiedział " + r.status);
+    k = await r.json();
+  } catch (e) {
+    krok("ustaw", "zle", e.message);
+    uwaga("Stacja nie oddała ustawień. Sprawdź, czy aparatura widzi stację pod tym adresem.");
+    return;
+  }
+  krok("ustaw", "dobrze", `broker ${k.mqtt}`);
+
+  krok("licencja", "idzie", "sprawdzam w Pilocie 2");
+  if (!k.appId || !k.appKey || !k.licencja) {
+    krok("licencja", "zle", "brak danych licencji w ustawieniach stacji");
+    uwaga("Cloud API wymaga licencji DJI (App ID, App Key, App License) z konta " +
+          "deweloperskiego DJI. Wpisz je w panelu ADMIN stacji — bez nich Pilot 2 " +
+          "nie załaduje modułu chmurowego.");
+    return;
+  }
+  const lic = odpowiedz(most.platformVerifyLicense(k.appId, k.appKey, k.licencja));
+  if (lic.code !== 0) {
+    krok("licencja", "zle", lic.message || ("kod " + lic.code));
+    uwaga("DJI odrzuciło licencję. Sprawdź App ID, App Key i App License " +
+          "oraz to, czy aparatura ma dostęp do internetu przy pierwszej weryfikacji.");
+    return;
+  }
+  krok("licencja", "dobrze", "przyjęta");
+
+  krok("podpisy", "idzie");
+  most.platformSetInformation(k.nazwaPlatformy, k.nazwaObszaru, k.opis);
+  most.platformSetWorkspaceId(k.obszarId);
+  krok("podpisy", "dobrze", k.nazwaObszaru);
+
+  krok("chmura", "idzie", "ładuję moduł i łączę z brokerem");
+  const wynik = odpowiedz(most.platformLoadComponent("thing", JSON.stringify({
+    host: k.mqtt,                 // tcp://adres:1883 — Pilot 2 wymaga tcp:// albo ws://
+    username: k.uzytkownik,
+    password: k.haslo,
+    connectCallback: "onThingConnect",
+  })));
+  if (wynik.code !== 0) {
+    krok("chmura", "zle", wynik.message || ("kod " + wynik.code));
+    uwaga("Moduł chmurowy się nie załadował. Najczęstsza przyczyna to adres brokera " +
+          "nieosiągalny z aparatury albo brak przedrostka tcp://.");
+    return;
+  }
+  krok("chmura", "dobrze", "moduł załadowany");
+  krok("polaczone", "idzie", "czekam na potwierdzenie z Pilota 2");
+}
+
+document.getElementById("ponow").addEventListener("click", podlacz);
+podlacz();
+</script>
+</body>
+</html>

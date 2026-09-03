@@ -85,12 +85,23 @@ export function normalizeZrodlo(z) {
     nazwa: z.nazwa || z.name || z.id,
     rtspGlowny: z.rtspGlowny || z.rtspMain || z.rtsp || "",
     rtspPomocniczy: z.rtspPomocniczy || z.rtspSub || "",
+    // Źródło NADAWANE nie ma adresu do pobrania — obraz wypycha do nas aparatura
+    // (drony DJI po RTMP). Pole musi przetrwać normalizację, bo od niego zależy
+    // i kształt ścieżki, i to, czy w ogóle otwieramy wejście RTMP.
+    nadawany: Boolean(z.nadawany),
   };
 }
 
 export function validateZrodlo(z) {
   const idErr = validateId(z.id);
   if (idErr) return idErr;
+  // Źródło nadawane celowo NIE ma adresu — czeka na nadawcę, więc wymóg adresu
+  // by je odrzucił. Za to nie wolno mu mieć adresu i flagi naraz: to znaczyłoby,
+  // że nie wiadomo, czy obraz pobieramy, czy przyjmujemy.
+  if (z.nadawany) {
+    if (z.rtspGlowny) return `Źródło "${z.id}": nadawane nie może mieć 'rtspGlowny'.`;
+    return null;
+  }
   if (!z.rtspGlowny) return `Źródło "${z.id}": brak adresu 'rtspGlowny'.`;
   if (!/^rtsps?:\/\//i.test(z.rtspGlowny))
     return `Źródło "${z.id}": 'rtspGlowny' musi zaczynać się od rtsp://`;
@@ -133,6 +144,7 @@ export function writeZrodla(zrodla, telemetria) {
   const out = {
     zrodla: zrodla.map((z) => {
       const o = { id: z.id, nazwa: z.nazwa, rtspGlowny: z.rtspGlowny };
+      if (z.nadawany) { o.nadawany = true; delete o.rtspGlowny; }
       if (z.rtspPomocniczy) o.rtspPomocniczy = z.rtspPomocniczy;
       return o;
     }),
@@ -185,15 +197,9 @@ export function writeArchiwum(zmiany = {}) {
 //
 // Wyjątek robi tryb archiwum `zawsze`: nagranie kompletne wymaga strumienia bez
 // przerwy, więc wtedy — i tylko wtedy — ścieżka wisi otwarta (TRYBY_WIDEO wyżej).
-export function mtxPathConf(source, opcje = {}) {
-  const conf = {
-    source,
-    sourceOnDemand: !opcje.ciagle,
-    sourceOnDemandCloseAfter: "30s",
-    rtspTransport: "tcp",
-  };
-  if (opcje.nagrywaj) {
-    conf.record = true;
+/** Klucze nagrywania — wspólne dla źródeł pobieranych i nadawanych. */
+function dopiszNagrywanie(conf, opcje) {
+  conf.record = true;
     // %path robi katalog na źródło, reszta to data i godzina startu segmentu.
     // Znaczniki są MediaMTX-owe (strftime + %f na mikrosekundy), nie nasze.
     // Ukośniki w jedną stronę: MediaMTX dostaje tę ścieżkę jako wzorzec tekstowy,
@@ -209,7 +215,27 @@ export function mtxPathConf(source, opcje = {}) {
     // umie patrzeć na wolne miejsce, a na karcie w RPi to jest właśnie ten limit,
     // który kończy się pierwszy.
     conf.recordDeleteAfter = `${Math.round(opcje.trzymajDni * 24)}h`;
+}
+
+export function mtxPathConf(source, opcje = {}) {
+  // ⛔ Źródło NADAWANE (drony DJI) nie ma adresu do pobrania — to nadawca sam się
+  // zgłasza po RTMP. Taka ścieżka nie może mieć ani `source`, ani `sourceOnDemand`:
+  // MediaMTX potraktowałby wtedy pustą wartość jak zepsuty adres i ścieżka nigdy
+  // by nie wstała. Czeka po prostu na publikującego.
+  if (opcje.nadawany) {
+    // `record` wypisujemy zawsze, żeby wpis nie był pustą mapą w YAML — pusta
+    // ścieżka czyta się jak `null` i parser MediaMTX nie ma wtedy czego wziąć.
+    const conf = { record: false };
+    if (opcje.nagrywaj) dopiszNagrywanie(conf, opcje);
+    return conf;
   }
+  const conf = {
+    source,
+    sourceOnDemand: !opcje.ciagle,
+    sourceOnDemandCloseAfter: "30s",
+    rtspTransport: "tcp",
+  };
+  if (opcje.nagrywaj) dopiszNagrywanie(conf, opcje);
   return conf;
 }
 
@@ -230,7 +256,9 @@ export function pathsForZrodlo(z, archiwum = null) {
         trzymajDni: archiwum.trzymajDni,
       }
     : {};
-  const out = [{ name: z.id, conf: mtxPathConf(z.rtspGlowny, opcje) }];
+  // Źródło nadawane rozpoznajemy po braku adresu RTSP — tak wygląda wpis dla DJI.
+  const nadawany = Boolean(z.nadawany) || !z.rtspGlowny;
+  const out = [{ name: z.id, conf: mtxPathConf(z.rtspGlowny, { ...opcje, nadawany }) }];
   if (z.rtspPomocniczy) out.push({ name: `${z.id}_pom`, conf: mtxPathConf(z.rtspPomocniczy) });
   return out;
 }
@@ -251,6 +279,8 @@ const yv = (v) => {
 };
 
 export function generateMediamtxYml(zrodla, archiwum = readArchiwum()) {
+  const sanadawane = zrodla.some((z) => z.nadawany || !z.rtspGlowny);
+  const wejscieRtmp = sanadawane ? "rtmp: yes\nrtmpAddress: :1935" : "rtmp: no";
   // Adres, pod którym MediaMTX pyta nas o zgodę. Musi wskazywać na TEN serwer.
   const authAddr = process.env.MTX_AUTH_ADDRESS
     || `http://127.0.0.1:${Number(process.env.PORT) || 8095}/api/mtx-auth`;
@@ -282,9 +312,12 @@ webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
 webrtcAllowOrigins: ['*']
 
-# Nieużywane protokoły wyłączone — kamera jest tylko ŹRÓDŁEM, nie publikuje do nas.
+# Kamera pokładowa jest tylko ŹRÓDŁEM i nie publikuje do nas — dla niej te
+# protokoły zostają wyłączone. Wejście RTMP włącza się WYŁĄCZNIE wtedy, gdy
+# w zrodla.json jest źródło nadawane (drony DJI wypychają obraz z aparatury).
+# Mniej otwartych portów, gdy nie ma czego przyjmować.
 rtsp: no
-rtmp: no
+${wejscieRtmp}
 hls: no
 srt: no
 # MoQ (MediaMTX 1.19+) otwiera własny nasłuch i generuje sobie certyfikat.
