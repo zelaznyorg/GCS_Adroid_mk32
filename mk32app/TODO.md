@@ -57,7 +57,7 @@ Kolumna „sprzęt" mówi, czy zadanie wymaga drona pod napięciem.
 | 🟠 2.28 | Pola licencji DJI w panelu ADMIN — dziś ustawia się je tylko przez API | tamże |
 | ✅ 2.29 | **APK zrzutu ekranu aparatury DJI** — ⚠ **od 2026-09-03 w SmartGCS `dji/`** (przeniesiony, nie forkowany; tu zostaje odbiornik `serwer/server/zrzut.mjs`); wcześniej moduł `app/zrzut`, MediaProjection → H.264 → TCP → ffmpeg → RTMP. Buduje się; odbiór sprawdzony lokalnie (hasło, jeden nadawca, przekazanie do ffmpeg) | dok/DJI.md §7 |
 | 🔴 2.30 | ⛔ **Sprawdzić, czy DJI nie blokuje zrzutu (`FLAG_SECURE`)** — jeśli tak, obraz będzie czarny i nie da się tego obejść. Stacja zgłasza podejrzenie po przepływności; rozstrzyga spojrzenie na podgląd | tamże |
-| 🟠 2.31 | Wgrać `zrzut-debug.apk` na kontroler DJI i przejechać całą drogę — stacja była wyłączona przy budowaniu | tamże |
+| 🟠 2.31 | Wgrać **Horyzont** (`horyzont-debug.apk`, SmartGCS `dji/`) na kontroler DJI i przejechać całą drogę — stacja była wyłączona przy budowaniu | tamże |
 | ✅ 2.32 | **Obsługa w locie: pauza zamiast zatrzymania** — zgoda brana raz, start/stop przełącza samo wysyłanie. Kafelek szybkich ustawień + powiadomienie + ekran; ponawianie łącza; ustawienia zablokowane w trakcie nadawania | dok/DJI.md §7 |
 | ✅ 2.33 | **Interfejs przeniesiony na Material Design 3 (Material You)** — karty, pola z obwódką, wybór segmentowany, motyw ciemny, barwy z tapety na Androidzie 12+. APK 0,84 → 5,7 MB | dok/DJI.md §7 |
 | ✅ 2.34 | **Aplikacja schodzi z ekranu** — klawisz UKRYJ i chowanie po starcie (domyślnie włączone). Obraz leci dalej; sprawdzone: 12 s w tle bez dotknięcia, dane płyną | dok/DJI.md §7 |

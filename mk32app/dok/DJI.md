@@ -257,8 +257,9 @@ ręczne poprawki w nim znikają. Zmieniać `scripts/zrodla-lib.mjs`.
 
 > ### ⚠ KOD APK PRZENIESIONY DO SmartGCS (2026-09-03)
 >
-> Decyzja Toma: *„to coś innego niż MK32, nie robić dodatkowego forka"*. Źródła
-> aplikacji są teraz w repozytorium **SmartGCS**, katalog **`dji/`** (samodzielny
+> Decyzja Toma: *„to coś innego niż MK32, nie robić dodatkowego forka"*. Aplikacja
+> nazywa się od 2026-09-03 **Horyzont** (pakiet `pl.gcs.horyzont`). Źródła są
+> w repozytorium **SmartGCS**, katalog **`dji/`** (samodzielny
 > projekt Gradle, moduł `:zrzut`, własny README z tabelą „co sprawdzone"). Historia
 > wcześniejszych zmian zostaje tu (`f9fa772`, `30c627c`). W tym repozytorium zostaje
 > **strona stacji**: odbiornik `server/zrzut.mjs`, furtka `nadawanie.mjs`, broker
