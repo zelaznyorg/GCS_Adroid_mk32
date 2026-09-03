@@ -5,9 +5,23 @@ katalogu w Smart GCS, aby w przyszłości móc ją rozbudowywać"*. Ten dokument
 **co dziś jest nagrywarką, gdzie jest zszyta z pulpitem i jak ją odciąć**, żeby
 cięcie było jednym ruchem, a nie serią niespodzianek.
 
-Źródła zdjęte z maliny 2026-09-03 (`~/gcs-src/pulpit/`, 5001 linii Pythona w 18
-plikach). ⛔ **Ten kod nie jest w żadnym repozytorium** — jedyna kopia leży na karcie
-SD stacji, która w tym tygodniu dwa razy znikała z sieci.
+> ### ⛔ KOREKTA (ten sam dzień, kilka godzin później) — kod JEST w repozytorium
+>
+> Pierwsza wersja tego dokumentu twierdziła, że pulpit „nie jest w żadnym repozytorium".
+> **Nieprawda.** Pulpit żyje w **SmartGCS** (`zelaznyorg/SmartGCS`), linia `main`,
+> kopia robocza `C:\Soft\gcs-DRON\RPI` — z `pulpit/`, `pogoda/`, `stacja/`, `dok/`,
+> `tests/`. Na malinie `~/gcs-src` to **wdrożenie** z tego repo (`narzedzia/wdroz.sh`:
+> *„malina dostaje jedynie finalne wdrożenia"*), bez `.git`. Malina była nawet
+> **starsza** od repo — brakowało jej `fix(audyt)` z 2026-09-03 09:56.
+> Szukałem kodu tylko na maszynie i zrobiłem zdublowaną „migawkę" w klonie
+> `C:\Soft\gcs-DRON\GSB` (stara linia PI5setup, bez pulpitu) — cofnięta.
+>
+> **Wydzielenie robione jest w SmartGCS**, worktree `C:\Soft\gcs-DRON\RPI-nagrywarka`,
+> gałąź `feat/nagrywarka-osobno` od `fix/audyt-kodu` (a38ea5f). Krok 1 („migawka")
+> **odpada** — historia już jest. Układ katalogów niżej: `nagrywarka/`, `wspolne/`
+> obok `pulpit/` w korzeniu SmartGCS (nie `mk32app/`).
+
+Źródła: SmartGCS `pulpit/gcs_pulpit/` — 5001 linii Pythona w 18 plikach.
 
 ---
 
@@ -124,10 +138,13 @@ dziś rozsiane po trzech plikach. W `nagrywarka/ustawienia.py`, ze zmiennymi
 
 ---
 
-## 6. Do rozstrzygnięcia przez Toma
+## 6. Rozstrzygnięte przez Toma (2026-09-03)
 
-1. **Czy pulpit ma wejść do Smart GCS** (krok 1) — czy nagrywarka ma być w repo sama,
-   a pulpit zostać tam, gdzie jest? Bez kroku 1 zmiany w `okno.py` z kroku 2 istniałyby
-   wyłącznie na karcie SD maliny.
-2. Nazwa katalogu: `mk32app/nagrywarka/` (obok `serwer/`, `app/`) czy poziom wyżej
-   (`dron15/nagrywarka/`, obok `tools/`, `plany/`)?
+1. Miejsce: **repozytorium SmartGCS**, linia główna (kopia `RPI`), nie `dron15`
+   i nie klon `GSB`. Katalogi `nagrywarka/` i `wspolne/` w korzeniu, obok `pulpit/`.
+2. Zakres cięcia: **przenosiny bez zmiany zachowania** — trzy pliki w całości
+   (`nagrywanie.py`, `nagrywarka.py` → `ekran.py`, `nagrania.py`), nie drobniejszy
+   podział z §2. Ten podział (zrodla/rejestrator/spis) zostaje jako możliwy krok
+   następny, gdy będzie po co.
+3. Wynik i lista rzeczy niesprawdzonych: SmartGCS `nagrywarka/README.md` oraz
+   `dok/UI_PULPIT.md` §17.11.
