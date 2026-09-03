@@ -4,7 +4,7 @@
 #
 # ⛔ TO JEST CAŁA LISTA. Trzy polecenia, każde z nazwą usługi wpisaną na sztywno.
 #
-# Nie ma tu `systemctl *` ani `systemctl restart dron15-*` i to nie jest przesada:
+# Nie ma tu `systemctl *` ani `systemctl restart panorama-*` i to nie jest przesada:
 # gwiazdka w sudoers oznacza, że wystarczy jedna dziura w warstwie wyżej (błąd
 # w sprawdzaniu nazwy, przechwycony żeton administratora), żeby panel stał się
 # powłoką z prawami roota. Przy trzech pełnych ścieżkach najgorsze, co może się

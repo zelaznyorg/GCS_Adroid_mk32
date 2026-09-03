@@ -1,5 +1,20 @@
 # Panorama — serwer podglądu
 
+> ### Nazwa: Panorama (od 2026-09-03), wcześniej „DRON 15 — podgląd"
+>
+> Decyzja Toma: stacja pokazuje obraz **z wielu źródeł** (ZR30 przez MK32, drony DJI,
+> tor analogowy CVBS), więc nazwa jednej maszyny do niej nie pasowała. Zmienione:
+> usługi `panorama-gcs` / `panorama-mediamtx` / `panorama-kiosk`, katalogi
+> `/opt/panorama` i `/var/lib/panorama`, sudoers `panorama-panel`, kafelek pulpitu
+> `30-panorama.json`, marka na stronie i w manifeście PWA.
+> **Nie zmienione, celowo:** klucze `localStorage` (`dron15.*`) — ich zmiana
+> wylogowałaby każdego widza, bo żetony siedzą pod nimi; odwołania do **maszyny**
+> DRON 15 (MAVLink przez MK32) — ona nadal tak się nazywa. `rpi/instaluj.sh` ma krok
+> przenosin ze starej nazwy (idempotentny): przenosi `/var/lib/dron15`, wyłącza stare
+> jednostki, usuwa stary sudoers i podmienia kafelek.
+> ⚠ Na stacji GSB do chwili wgrania działają jeszcze stare nazwy — dokumentacja
+> historyczna w `dok/` używa ich świadomie.
+
 Odbiera obraz z głowicy ZR30 i telemetrię z MK32, rozdaje je przeglądarkom w sieci.
 Etap **M6** z [../PLAN.md](../PLAN.md). Architektura i uzasadnienia decyzji:
 [../dok/SERWER_PODGLADU.md](../dok/SERWER_PODGLADU.md).
