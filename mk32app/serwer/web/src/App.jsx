@@ -23,7 +23,10 @@ import Stacja from "./Stacja";
 import Mapa from "./Mapa";
 import NaglowekPanelu from "./NaglowekPanelu";
 import { IkonaOko, IkonaKlucz, IkonaStacja, IkonaStrumien, IkonaPelnyEkran, IkonaMapa, IkonaOddokuj, IkonaPokretlo, IkonaZamknij } from "./Ikony";
-import Mozaika, { IkonaMozaika } from "./Mozaika";
+import Mozaika from "./Mozaika";
+
+// Wartość na liście źródeł oznaczająca „wszystkie naraz". Nie może zderzyć się z id.
+const MOZAIKA = "__mozaika__";
 import "./App.css";
 
 // Czy to wąski ekran trzymany w ręce. Sprawdzamy RAZ, przy pierwszym renderze —
@@ -380,24 +383,22 @@ export default function App() {
         klawisze={
           <div className="rzad-klawiszy">
             {zrodla.length > 1 && (
-              <button
-                type="button"
-                className={`klawisz ${pokazMozaike ? "wlaczony" : ""}`}
-                onClick={() => setMozaika((m) => !m)}
-                title="Wszystkie źródła naraz — klik w kafelek wybiera jedno"
-              >
-                <IkonaMozaika />
-                <span className="klawisz-podpis">MOZAIKA</span>
-              </button>
-            )}
-
-            {zrodla.length > 1 && (
               <select
                 className="klawisz-wybor"
-                value={wybrane ?? ""}
-                onChange={(e) => { setWybrane(e.target.value); setMozaika(false); }}
-                title="Które źródło obrazu"
+                value={pokazMozaike ? MOZAIKA : wybrane ?? ""}
+                onChange={(e) => {
+                  // Jedno miejsce do zmiany widoku (uwaga Toma, 2026-09-03): osobny klawisz
+                  // MOZAIKA obok listy był drugim elementem do tej samej rzeczy.
+                  if (e.target.value === MOZAIKA) {
+                    setMozaika(true);
+                  } else {
+                    setWybrane(e.target.value);
+                    setMozaika(false);
+                  }
+                }}
+                title="Które źródło obrazu — albo wszystkie naraz"
               >
+                <option value={MOZAIKA}>WSZYSTKIE — MOZAIKA</option>
                 {zrodla.map((z) => (
                   <option key={z.id} value={z.id}>{z.nazwa}</option>
                 ))}
