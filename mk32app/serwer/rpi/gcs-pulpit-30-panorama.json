@@ -3,7 +3,7 @@
   "opis": "Obraz, telemetria i mapa ze stacji. Pełny ekran, obsługa pokrętłem.",
   "uruchom": [
     "/opt/panorama/rpi/podglad.sh",
-    "http://192.168.88.30:8095/#z=fa54ba7df01a232af0e414da"
+    "http://192.168.88.30:8095/#z=KOD-ZAPROSZENIA-ADMINA"
   ],
   "wymaga": {
     "usluga": "panorama-gcs"

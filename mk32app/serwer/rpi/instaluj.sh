@@ -84,10 +84,27 @@ for STARA in dron15-gcs dron15-mediamtx; do
 done
 [ -f /etc/sudoers.d/dron15-panel ] && { powiedz "usuwam stary /etc/sudoers.d/dron15-panel"; rm -f /etc/sudoers.d/dron15-panel; }
 # Kafelek pulpitu GCS: stary wpis zastępujemy nowym (ten sam numer 30 = to samo miejsce).
+# ⛔ Kafelek niesie ADRES Z KODEM ZAPROSZENIA — i to musi zostać adres tej stacji,
+# nie ten z repozytorium. 2026-09-03 wzorzec z repo miał kod widza „monitory stacji";
+# po przenosinach okno Panoramy z pulpitu weszło jako widz i panel ADMIN „zniknął".
+# Dlatego nowy kafelek dostaje polecenie uruchomienia ze STAREGO, a z repo tylko
+# nazwę, opis, wymagania i ikonę. Wzorzec w repo ma zamiast kodu napis KOD-ZAPROSZENIA-ADMINA.
 if [ -f /etc/gcs/aplikacje.d/30-dron15.json ]; then
-  powiedz "kafelek pulpitu: 30-dron15.json -> 30-panorama.json"
-  install -m 0644 "$KATALOG/rpi/gcs-pulpit-30-panorama.json" /etc/gcs/aplikacje.d/30-panorama.json
-  rm -f /etc/gcs/aplikacje.d/30-dron15.json
+  powiedz "kafelek pulpitu: 30-dron15.json -> 30-panorama.json (adres i kod zaproszenia ze starego)"
+  python3 - "$KATALOG/rpi/gcs-pulpit-30-panorama.json" /etc/gcs/aplikacje.d/30-dron15.json > /tmp/30-panorama.json <<'PY'
+import json, sys
+nowy = json.load(open(sys.argv[1])); stary = json.load(open(sys.argv[2]))
+adres = next((u for u in stary.get("uruchom", []) if u.startswith("http")), None)
+if adres:
+    nowy["uruchom"] = [adres if u.startswith("http") else u for u in nowy["uruchom"]]
+print(json.dumps(nowy, ensure_ascii=False, indent=2))
+PY
+  install -m 0644 /tmp/30-panorama.json /etc/gcs/aplikacje.d/30-panorama.json
+  rm -f /tmp/30-panorama.json /etc/gcs/aplikacje.d/30-dron15.json
+fi
+if grep -q "KOD-ZAPROSZENIA-ADMINA" /etc/gcs/aplikacje.d/30-panorama.json 2>/dev/null; then
+  echo "UWAGA: kafelek 30-panorama.json ma napis KOD-ZAPROSZENIA-ADMINA zamiast kodu —"
+  echo "       wpisz kod zaproszenia admina (panel ADMIN → ZAPROSZENIA) w /etc/gcs/aplikacje.d/30-panorama.json"
 fi
 systemctl daemon-reload
 
