@@ -15,6 +15,44 @@
 > ⚠ Na stacji GSB do chwili wgrania działają jeszcze stare nazwy — dokumentacja
 > historyczna w `dok/` używa ich świadomie.
 
+## Źródła obrazu: z panelu ADMIN, najwyżej sześć, każdy dron z własnym hasłem
+
+Od 2026-09-03 źródeł nie edytuje się w `zrodla.json` przez ssh. Panel **ADMIN →
+ŹRÓDŁA OBRAZU** dodaje, nazywa, ukrywa i usuwa je **na żywo** (ścieżki MediaMTX
+przez API na 9997, plik na dysku przepisany w tym samym ruchu):
+
+| Rodzaj | Kto zaczyna | Co trzeba podać |
+|---|---|---|
+| **dron DJI — nadaje do stacji** | aparatura wypycha obraz (RTMP z Pilota 2 albo APK zrzutu ekranu) | tylko nazwę; identyfikator i **hasło** stacja zakłada sama |
+| **kamera IP — stacja pobiera** | stacja ściąga RTSP na żądanie | nazwę i `rtsp://…` |
+
+**Hasło na źródło, nie na stację.** Każdy dron DJI ma własne — to nim mówi stacji,
+kim jest: w adresie RTMP dla Pilota 2 (`rtmp://stacja:1935/<id>?user=dji&pass=…`)
+i w aplikacji zrzutu ekranu (ta podaje samo hasło; stacja po haśle wie, pod którą
+ścieżkę wpuścić). Hasła leżą w `/var/lib/panorama/nadawanie.json`, nigdy w
+`zrodla.json` i nigdy w odpowiedzi dla widza. Stare wspólne `nadawanie.txt` zostaje
+jako **klucz stacji** dla Cloud API DJI (`dji.html`, broker MQTT) — inna rzecz.
+
+**Widoczne / ukryte.** Źródło można zdefiniować, a jeszcze nie pokazywać: ukryte
+ma ścieżkę i przyjmuje obraz (admin widzi „NADAJE"), ale nie trafia na listę widza
+ani do mozaiki.
+
+**Ekran główny — reguła kafelków (decyzja Toma):** jedno widoczne źródło → od razu
+pełny ekran; dwa i więcej → **mozaika** (2: obok siebie, 3–4: 2×2, 5–6: 3×2), klik
+w kafelek wybiera jedno, klawisz MOZAIKA wraca. **Najwyżej sześć źródeł** — każdy
+kafelek to osobne połączenie WebRTC i osobne dekodowanie H.264 w przeglądarce,
+a malina nie ma do tego sprzętu. ⚠ Kafelek źródła pobieranego uruchamia jego
+pobieranie: dopóki mozaika jest na ekranie, ZR30 leci przez łącze radiowe.
+
+⚠ **Jedna zmiana wymaga restartu usługi OBRAZ:** wejście RTMP (port 1935) to
+ustawienie globalne MediaMTX. Pierwsze źródło nadawane i usunięcie ostatniego
+zwracają `wymagaRestartuObrazu: true`, panel to pokazuje, restart robi się z panelu
+STACJA. Na GSB port jest już otwarty (są źródła `dji`, `dji2`).
+
+Sprawdzone lokalnie 2026-09-03 na żywym serwerze i MediaMTX 1.19 (42 kroki: dodanie,
+ukrycie, nazwa, hasło, limit, usunięcie, furtka `mtx-auth`, prawdziwe nadawanie
+ffmpegiem — właściwe hasło daje `ready`, złe kończy się `authentication failed: 401`).
+
 Odbiera obraz z głowicy ZR30 i telemetrię z MK32, rozdaje je przeglądarkom w sieci.
 Etap **M6** z [../PLAN.md](../PLAN.md). Architektura i uzasadnienia decyzji:
 [../dok/SERWER_PODGLADU.md](../dok/SERWER_PODGLADU.md).

@@ -493,6 +493,28 @@ systemowy, ale zostawiała po nim **szary pas** — pełny ekran musi iść z mo
 
 ---
 
+## 9. Hasło na drona, źródła z panelu, mozaika (2026-09-03, gałąź feat/panorama)
+
+Panorama pokazuje wiele dronów naraz, więc jedno wspólne hasło nadawania przestało
+wystarczać: aparatura mogłaby nadawać pod cudzą ścieżkę, a odbiornik zrzutu ekranu
+nie miałby jak poznać, **który** dron do niego mówi. Teraz:
+
+- każdy dron DJI to **źródło nadawane** dodawane w panelu ADMIN → ŹRÓDŁA OBRAZU,
+  z własnym hasłem (`/var/lib/panorama/nadawanie.json`);
+- adres RTMP dla Pilota 2: `rtmp://stacja:1935/<id drona>?user=dji&pass=<hasło drona>`;
+- APK zrzutu ekranu wpisuje **hasło drona** — stacja po haśle wybiera ścieżkę
+  (`server/zrzut.mjs`, `nadawanie.zrodloPoHasle`). Jeden odbiornik, wiele dronów;
+- `nadawanie.txt` zostaje **kluczem stacji** dla Cloud API (`dji.html`, broker MQTT) —
+  to konfiguracja telemetrii, nie nadawanie obrazu;
+- ekran główny: jedno źródło → pełny ekran, dwa i więcej → mozaika, najwyżej sześć.
+
+Szczegóły i wynik próby (42 kroki na żywym serwerze i MediaMTX): `serwer/README.md`.
+
+⚠ Istniejące źródła `dji` i `dji2` na GSB dostaną przy pierwszym uruchomieniu
+**stary wspólny klucz** jako hasło — adresy wpisane już w aparaturę dalej działają.
+
+---
+
 ## 8. ✅ Jedna aplikacja obsługuje OBIE drogi obrazu (2026-09-03)
 
 Do tej pory zrzut ekranu i natywny RTMP z Pilota 2 były dwoma osobnymi pomysłami:

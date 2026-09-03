@@ -28,7 +28,10 @@ import "./Hud.css";
 // nie musimy liczyć tutaj: robi to `_swieze()` w server/telemetria.mjs.
 const PRÓG_STARE_S = 2;
 
-export default function Osd({ stan, polaczony, klawisze = null, diody = null }) {
+// `mozaika`: na ekranie jest kilka źródeł naraz, a telemetria dotyczy jednej maszyny
+// (DRON 15 przez MK32). Taśma kursu, banery i horyzont rysowałyby się wtedy NA
+// kafelkach obcych dronów — więc w mozaice zostają tylko pas górny i dolny pasek.
+export default function Osd({ stan, polaczony, klawisze = null, diody = null, mozaika = false }) {
   const czekaNaDane = !stan;
 
   // Jeden wiek dla całej nakładki, tak samo jak `stan.wiekTelemetriiS()` w kokpicie.
@@ -41,15 +44,15 @@ export default function Osd({ stan, polaczony, klawisze = null, diody = null }) 
     <div className="hud">
       <PasGorny stan={stan} polaczony={polaczony} />
 
-      {!czekaNaDane && <TasmaKursu stan={stan} />}
+      {!czekaNaDane && !mozaika && <TasmaKursu stan={stan} />}
 
-      <Banery
+      {!mozaika && <Banery
         ostrzezenia={stan?.ostrzezenia ?? []}
         czekaNaDane={czekaNaDane}
         polaczony={polaczony}
-      />
+      />}
 
-      {!czekaNaDane && (
+      {!czekaNaDane && !mozaika && (
         <div className="karty-narozne">
           <KartaHoryzontu stan={stan} stare={stare} />
         </div>

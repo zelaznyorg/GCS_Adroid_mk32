@@ -23,6 +23,7 @@ import Stacja from "./Stacja";
 import Mapa from "./Mapa";
 import NaglowekPanelu from "./NaglowekPanelu";
 import { IkonaOko, IkonaKlucz, IkonaStacja, IkonaStrumien, IkonaPelnyEkran, IkonaMapa, IkonaOddokuj, IkonaPokretlo, IkonaZamknij } from "./Ikony";
+import Mozaika, { IkonaMozaika } from "./Mozaika";
 import "./App.css";
 
 // Czy to wąski ekran trzymany w ręce. Sprawdzamy RAZ, przy pierwszym renderze —
@@ -82,6 +83,10 @@ export default function App() {
   const [pomocniczy, setPomocniczy] = useState(TELEFON);
   const [bladZrodel, setBladZrodel] = useState(null);
   const [panel, setPanel] = useState(null);        // "widzowie" | "admin" | "stacja" | null
+  // Mozaika: wszystkie widoczne źródła naraz. Włącza się sama, gdy jest ich dwa
+  // lub więcej; klik w kafelek albo wybór z listy wraca do pełnego ekranu.
+  const [mozaika, setMozaika] = useState(false);
+  const pierwszeZrodla = useRef(true);
   const videoRef = useRef(null);
   const ekranRef = useRef(null);
 
@@ -111,17 +116,33 @@ export default function App() {
   useEffect(rozpoznaj, [rozpoznaj]);
 
   // ---- źródła obrazu ----
-  useEffect(() => {
+  // Wołane przy wejściu i po każdej zmianie w panelu ADMIN (dodanie drona, ukrycie
+  // źródła) — inaczej nowy kafelek pojawiałby się dopiero po przeładowaniu strony.
+  const wczytajZrodla = useCallback(() => {
     if (!ja) return;
     api("/api/zrodla")
       .then((d) => {
         const lista = d.zrodla || [];
         setZrodla(lista);
         // Administrator narzuca domyślne, widz może zmienić u siebie (decyzja 9).
-        setWybrane((w) => w ?? d.zrodloDomyslne ?? lista[0]?.id ?? null);
+        setWybrane((w) => (w && lista.some((z) => z.id === w) ? w : d.zrodloDomyslne ?? lista[0]?.id ?? null));
+        // Reguła z 2026-09-03: jedno źródło → od razu pełny ekran; dwa i więcej →
+        // mozaika. Decyzję podejmujemy raz, przy wejściu — potem rządzi operator.
+        if (pierwszeZrodla.current) {
+          pierwszeZrodla.current = false;
+          setMozaika(lista.length >= 2);
+        } else if (lista.length < 2) {
+          setMozaika(false);
+        }
       })
       .catch((e) => setBladZrodel(String(e.message || e)));
   }, [ja]);
+
+  // Lista źródeł ładuje się przy wejściu — to celowe przejście stanu, nie skutek uboczny.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(wczytajZrodla, [wczytajZrodla]);
+
+  const pokazMozaike = mozaika && zrodla.length >= 2;
 
   const zrodlo = useMemo(() => zrodla.find((z) => z.id === wybrane) || null, [zrodla, wybrane]);
 
@@ -140,7 +161,10 @@ export default function App() {
   // zestawić telemetrię.
   const zetonWidza = ja ? zeton(stacja) : null;
   const { stan, polaczony, odciety } = useTelemetria(idStrumienia, stacja, zetonWidza);
-  const stanObrazu = useWhep(adresWhep(), idStrumienia ?? "brak", videoRef);
+  // W mozaice pełnoekranowy odtwarzacz nie ma czego grać — kafelki mają własne
+  // połączenia. Pusty identyfikator zamiast prawdziwego, żeby nie ciągnąć strumienia
+  // po nic (dla ZR30 to łącze radiowe).
+  const stanObrazu = useWhep(adresWhep(), pokazMozaike ? "brak" : idStrumienia ?? "brak", videoRef);
   const zywy = stanObrazu === "zywo";
 
   // Telefon w terenie: ekran ma nie gasnąć, dopóki jest co oglądać, i ma dać się
@@ -283,9 +307,20 @@ export default function App() {
           paska 16:9 u góry — pełnoekranowy obraz w pionie to dwa czarne pasy
           i telemetria wpisana w to, co zostało. */}
       <div className="scena">
+        {pokazMozaike ? (
+          <Mozaika
+            zrodla={zrodla}
+            bazaWhep={adresWhep()}
+            naWybor={(id) => {
+              setWybrane(id);
+              setMozaika(false);
+            }}
+          />
+        ) : (
         <video ref={videoRef} className="obraz" autoPlay playsInline muted />
+        )}
 
-        {!zywy && (
+        {!pokazMozaike && !zywy && (
           <div className="zaslona">
             <div className={`stan-obrazu ${stanObrazu}`}>{STAN_OPIS[stanObrazu]}</div>
             {stanObrazu === "brak_dekodera" && (
@@ -312,6 +347,7 @@ export default function App() {
       <Osd
         stan={stan}
         polaczony={polaczony}
+        mozaika={pokazMozaike}
         diody={
           <span className="diody lapie">
             <span className="imie-widza" title={`zalogowany jako ${ja.imie}`}>{ja.imie}</span>
@@ -344,10 +380,22 @@ export default function App() {
         klawisze={
           <div className="rzad-klawiszy">
             {zrodla.length > 1 && (
+              <button
+                type="button"
+                className={`klawisz ${pokazMozaike ? "wlaczony" : ""}`}
+                onClick={() => setMozaika((m) => !m)}
+                title="Wszystkie źródła naraz — klik w kafelek wybiera jedno"
+              >
+                <IkonaMozaika />
+                <span className="klawisz-podpis">MOZAIKA</span>
+              </button>
+            )}
+
+            {zrodla.length > 1 && (
               <select
                 className="klawisz-wybor"
                 value={wybrane ?? ""}
-                onChange={(e) => setWybrane(e.target.value)}
+                onChange={(e) => { setWybrane(e.target.value); setMozaika(false); }}
                 title="Które źródło obrazu"
               >
                 {zrodla.map((z) => (
@@ -494,7 +542,13 @@ export default function App() {
         />
       )}
       {panel === "admin" && (
-        <Admin zrodla={zrodla} panel={panel} naPanel={setPanel} naZamknij={() => setPanel(null)} />
+        <Admin
+          zrodla={zrodla}
+          naZmianeZrodel={wczytajZrodla}
+          panel={panel}
+          naPanel={setPanel}
+          naZamknij={() => setPanel(null)}
+        />
       )}
       {panel === "stacja" && (
         <Stacja panel={panel} naPanel={setPanel} naZamknij={() => setPanel(null)} />

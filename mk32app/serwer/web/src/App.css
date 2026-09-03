@@ -593,3 +593,54 @@
 .klawisz.zamknij-stacje.ognisko-pokretla {
   background: color-mix(in srgb, var(--blad, #ff8a70) 16%, transparent);
 }
+
+/* ---- mozaika źródeł (Mozaika.jsx): dwa i więcej widocznych źródeł naraz ---- */
+.mozaika {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--kolumny, 2), 1fr);
+  grid-auto-rows: 1fr;
+  gap: 4px;
+  /* Pasy stanu i telemetrii leżą NA scenie; kafelki nie mogą pod nie wjeżdżać,
+     bo dolny rząd stałby się nieklikalny. */
+  padding: calc(var(--pas-stanu) + 6px) 4px calc(var(--pas-telemetrii) + 6px) 4px;
+  background: #000;
+}
+.kafelek-zrodla {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--linia2);
+  border-radius: var(--promien);
+  background: #000;
+  overflow: hidden;
+  cursor: pointer;
+}
+.kafelek-zrodla video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.kafelek-zrodla:hover,
+.kafelek-zrodla:focus-visible,
+.kafelek-zrodla.ognisko-pokretla { border-color: var(--akcent); outline: none; }
+.kafelek-zrodla.zywo { border-color: rgba(53, 208, 122, 0.55); }
+.kafelek-nazwa,
+.kafelek-stan {
+  position: absolute;
+  top: 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000;
+  pointer-events: none;
+}
+.kafelek-nazwa { left: 8px; font-weight: 700; color: var(--tekst); }
+.kafelek-stan { right: 8px; color: var(--tekst-slaby); }
+.kafelek-stan.zywo { color: var(--ok); }
+.kafelek-stan.blad,
+.kafelek-stan.brak_dekodera { color: var(--uwaga); }
+.kafelek-stan.odmowa { color: var(--blokada); }

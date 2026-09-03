@@ -45,13 +45,17 @@ const PROG_PUSTEGO_KBS = 20;
 
 export class OdbiorZrzutu {
   /**
-   * @param {() => string} haslo — to samo hasło urządzenia, co przy nadawaniu obrazu
+   * @param {(haslo: string) => ({id: string, haslo: string} | null)} rozpoznaj — po haśle
+   *        z nagłówka mówi, KTÓRE źródło nadawane nadaje (nadawanie.zrodloPoHasle).
+   *        Aparatura nie podaje ścieżki: zna tylko swoje hasło, a to hasło jest
+   *        tożsamością drona — jeden odbiornik obsługuje wszystkie drony DJI.
    *   i przy DJI Cloud API. Jedno hasło, jedno miejsce do wymiany.
-   * @param {string} sciezka — ścieżka MediaMTX, pod którą przepakowujemy strumień.
    */
-  constructor(haslo, sciezka = "dji") {
-    this.haslo = haslo;
-    this.sciezka = sciezka;
+  constructor(rozpoznaj) {
+    this.rozpoznaj = rozpoznaj;
+    // Ustawiane przy każdym połączeniu z tego, kto się zgłosił.
+    this.sciezka = null;
+    this.hasloZrodla = null;
     this.serwer = null;
     this.polaczenie = null;
     this.ffmpeg = null;
@@ -110,14 +114,18 @@ export class OdbiorZrzutu {
         gniazdo.destroy();
         return;
       }
-      if (String(n.haslo || "") !== this.haslo()) {
-        rejestr.ostrzezenie("zrzut", `złe hasło urządzenia od ${skad}`);
+      const zrodlo = this.rozpoznaj(String(n.haslo || ""));
+      if (!zrodlo) {
+        rejestr.ostrzezenie("zrzut", `hasło od ${skad} nie pasuje do żadnego źródła nadawanego`);
         gniazdo.destroy();
         return;
       }
+      this.sciezka = zrodlo.id;
+      this.hasloZrodla = zrodlo.haslo;
 
       const fps = Math.min(60, Math.max(1, Number(n.fps) || 30));
       rejestr.info("zrzut", `aparatura zaczyna nadawać ekran (${skad})`, {
+        zrodlo: this.sciezka,
         rozmiar: `${n.szer || "?"}x${n.wys || "?"}`,
         fps,
       });
@@ -187,7 +195,7 @@ export class OdbiorZrzutu {
 
   uruchomFfmpeg(fps) {
     this.czarny = false;
-    const cel = `rtmp://127.0.0.1:1935/${this.sciezka}?user=dji&pass=${this.haslo()}`;
+    const cel = `rtmp://127.0.0.1:1935/${this.sciezka}?user=dji&pass=${this.hasloZrodla}`;
     const argumenty = [
       "-hide_banner", "-loglevel", "info",
       // Wejście: goły strumień H.264. Znaczników czasu w nim nie ma, więc podajemy

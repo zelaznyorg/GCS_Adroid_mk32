@@ -23,6 +23,9 @@ import {
   writeArchiwum,
   generateMediamtxYml,
   pathsForZrodlo,
+  writeZrodla,
+  validateId,
+  MAKS_ZRODEL,
 } from "../scripts/zrodla-lib.mjs";
 import * as mtx from "./mediamtx.mjs";
 import * as obecnosc from "./obecnosc.mjs";
@@ -94,7 +97,8 @@ const telemetria = new Telemetria({ ...readTelemetria(), archiwum });
 // więc strona nie musi wiedzieć, na co patrzy (dok/DJI.md §3).
 const dji = new MostDji(() => nadawanie.haslo());
 // Obraz z ekranu aparatury DJI — nasz APK na kontrolerze (dok/DJI.md §7).
-const zrzut = new OdbiorZrzutu(() => nadawanie.haslo(), "dji");
+// Jeden odbiornik dla wszystkich dronów: hasło z nagłówka mówi, które źródło nadaje.
+const zrzut = new OdbiorZrzutu((h) => nadawanie.zrodloPoHasle(h));
 
 /**
  * Pokrętło stacji. Przy maszynie nie ma myszy ani klawiatury — jest enkoder
@@ -183,14 +187,23 @@ app.get("/api/ja", (req, res) => {
 
 // ---- API: źródła obrazu ----
 
+// Lista dla widza: wyłącznie źródła WIDOCZNE, bez adresów RTSP i bez haseł.
+// `zywe` mówi, czy MediaMTX ma w tej chwili strumień — dla źródła nadawanego to
+// jedyny sposób, żeby kafelek napisał „czeka na nadawcę" zamiast „brak sygnału".
 app.get("/api/zrodla", wymagaj("widz"), wrap(async (_req, res) => {
+  const stanSciezek = await mtx.pathsStatus();
   res.json({
-    zrodla: readZrodla().map((z) => ({
-      id: z.id,
-      nazwa: z.nazwa,
-      maPomocniczy: Boolean(z.rtspPomocniczy),
-    })),
+    zrodla: readZrodla()
+      .filter((z) => z.widoczne)
+      .map((z) => ({
+        id: z.id,
+        nazwa: z.nazwa,
+        maPomocniczy: Boolean(z.rtspPomocniczy),
+        nadawany: z.nadawany,
+        zywe: Boolean(stanSciezek[z.id]?.ready),
+      })),
     zrodloDomyslne: dostep.ustawienia().zrodloDomyslne,
+    maks: MAKS_ZRODEL,
   });
 }));
 
@@ -391,9 +404,11 @@ app.get("/api/zrzut", wymagaj("admin"), (req, res) => {
   const gospodarz = String(req.headers.host || "").split(":")[0];
   res.json({
     ...zrzut.stan(),
-    // Adres do wpisania w APK na aparaturze.
+    // Adres do wpisania w APK na aparaturze — ten sam dla każdego drona; różni je hasło.
     adres: `${gospodarz}:${PORT_ZRZUTU}`,
-    haslo: nadawanie.haslo(),
+    zrodla: readZrodla()
+      .filter((z) => z.nadawany)
+      .map((z) => ({ id: z.id, nazwa: z.nazwa, haslo: nadawanie.hasloZrodla(z.id) })),
   });
 });
 
@@ -416,22 +431,189 @@ app.post("/api/dji/ustawienia", wymagaj("admin"), (req, res) => {
 });
 
 app.get("/api/nadawanie", wymagaj("admin"), (req, res) => {
-  // Adres do wpisania w aparaturze DJI. Niesie hasło, więc widzowi go nie pokazujemy.
+  // Adresy do wpisania w aparaturze DJI — po jednym na źródło nadawane, każdy z własnym
+  // hasłem. Niosą hasła, więc widzowi ich nie pokazujemy.
   const gospodarz = String(req.headers.host || "").split(":")[0] || "192.168.88.30";
+  const nadawane = readZrodla().filter((z) => z.nadawany);
   res.json({
-    haslo: nadawanie.haslo(),
-    sciezki: nadawanie.SCIEZKI_NADAWANIA,
-    adresy: nadawanie.SCIEZKI_NADAWANIA.map(
-      (s) => `rtmp://${gospodarz}:1935/${s}?user=dji&pass=${nadawanie.haslo()}`
-    ),
+    kluczStacji: nadawanie.haslo(),
+    sciezki: nadawane.map((z) => z.id),
+    adresy: nadawane.map((z) => nadawanie.adresRtmp(gospodarz, z.id)),
   });
 });
 
 app.post("/api/nadawanie/nowe-haslo", wymagaj("admin"), (_req, res) => {
+  // Klucz STACJI (Cloud API DJI: dji.html, broker MQTT) — nie hasła źródeł; te wymienia
+  // się osobno, per dron, w /api/admin/zrodla/:id/nowe-haslo.
   const h = nadawanie.nowHaslo();
-  rejestr.ostrzezenie("nadawanie", "wymieniono hasło nadawania — stare adresy przestały działać");
+  rejestr.ostrzezenie("nadawanie", "wymieniono klucz stacji DJI — adres dji.html w Pilocie 2 przestał działać");
   res.json({ haslo: h });
 });
+
+// ---- API: źródła obrazu z panelu ADMIN ----
+//
+// Do 2026-09-03 źródła zmieniało się w zrodla.json przez ssh. Z dronami DJI to
+// przestało wystarczać: każdy nowy dron to wpis, hasło i ścieżka w MediaMTX, a robi
+// się to w polu. Zmiany idą na żywo przez API MediaMTX (jak przy archiwum) —
+// restart stacji zabrałby obraz wszystkim widzom po to, żeby dopisać jeden kafelek.
+//
+// ⚠ Jednej rzeczy na żywo NIE da się zmienić: wejście RTMP (`rtmp: yes`) jest
+// ustawieniem GLOBALNYM MediaMTX. Pierwsze źródło nadawane albo usunięcie ostatniego
+// wymaga restartu usługi obrazu — odpowiedź to mówi wprost (`wymagaRestartuObrazu`),
+// a restart robi się z panelu STACJA.
+
+function zrodlaAdmina(req) {
+  const gospodarz = String(req.headers.host || "").split(":")[0] || "192.168.88.30";
+  return mtx.pathsStatus().then((stan) =>
+    readZrodla().map((z) => ({
+      id: z.id,
+      nazwa: z.nazwa,
+      nadawany: z.nadawany,
+      widoczne: z.widoczne,
+      rtspGlowny: z.rtspGlowny || null,
+      rtspPomocniczy: z.rtspPomocniczy || null,
+      zywe: Boolean(stan[z.id]?.ready),
+      czytelnikow: stan[z.id]?.readers ?? 0,
+      // Sekrety wyłącznie dla admina i wyłącznie dla źródeł nadawanych.
+      haslo: z.nadawany ? nadawanie.hasloZrodla(z.id) : null,
+      adresRtmp: z.nadawany ? nadawanie.adresRtmp(gospodarz, z.id) : null,
+      adresZrzutu: z.nadawany ? `${gospodarz}:${PORT_ZRZUTU}` : null,
+    }))
+  );
+}
+
+/** Identyfikator z nazwy: małe litery ASCII, cyfry, myślnik — i unikalny. */
+function identyfikatorZNazwy(nazwa, zajete) {
+  const baza = String(nazwa || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ł/g, "l")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24) || "zrodlo";
+  let id = baza;
+  for (let n = 2; zajete.has(id); n += 1) id = `${baza}-${n}`;
+  return id;
+}
+
+/** Przepisuje ścieżki jednego źródła w MediaMTX i plik na dysku. */
+async function zsynchronizujZrodlo(z) {
+  for (const { name, conf } of pathsForZrodlo(z, ustArchiwum)) {
+    try {
+      await mtx.upsertPath(name, conf);
+    } catch (e) {
+      rejestr.wyjatek("zrodla", `nie mogę przestawić ścieżki ${name}`, e);
+    }
+  }
+  generateMediamtxYml(readZrodla(), ustArchiwum);
+}
+
+const jestRtmp = () => readZrodla().some((z) => z.nadawany);
+
+app.get("/api/admin/zrodla", wymagaj("admin"), wrap(async (req, res) => {
+  res.json({ zrodla: await zrodlaAdmina(req), maks: MAKS_ZRODEL, rtmp: jestRtmp() });
+}));
+
+app.post("/api/admin/zrodla", wymagaj("admin"), wrap(async (req, res) => {
+  const b = req.body || {};
+  const lista = readZrodla();
+  if (lista.length >= MAKS_ZRODEL) {
+    return res.status(400).json({ blad: `Najwyżej ${MAKS_ZRODEL} źródeł — usuń któreś, zanim dodasz kolejne.` });
+  }
+  const nadawany = b.rodzaj === "nadawane";
+  const nazwa = String(b.nazwa || "").trim();
+  if (!nazwa) return res.status(400).json({ blad: "Podaj nazwę źródła." });
+  const zajete = new Set(lista.map((z) => z.id));
+  const id = b.id ? String(b.id).trim() : identyfikatorZNazwy(nazwa, zajete);
+  const bladId = validateId(id);
+  if (bladId) return res.status(400).json({ blad: bladId });
+  if (zajete.has(id)) return res.status(409).json({ blad: `Źródło „${id}” już istnieje.` });
+  const nowe = {
+    id,
+    nazwa,
+    nadawany,
+    widoczne: b.widoczne !== false,
+    rtspGlowny: nadawany ? "" : String(b.rtspGlowny || "").trim(),
+    rtspPomocniczy: nadawany ? "" : String(b.rtspPomocniczy || "").trim(),
+  };
+  const rtmpPrzed = jestRtmp();
+  try {
+    writeZrodla([...lista, nowe]);
+  } catch (e) {
+    return res.status(400).json({ blad: String(e.message || e) });
+  }
+  if (nadawany) nadawanie.hasloZrodla(id); // zakłada hasło od razu, żeby admin je zobaczył
+  await zsynchronizujZrodlo(readZrodla().find((z) => z.id === id));
+  dostep.zapiszZdarzenie("zrodla", `dodano źródło ${id} (${nadawany ? "nadawane" : "pobierane"})`, { kto: req.kto.imie });
+  rejestr.info("zrodla", `dodano źródło ${id}`, { nadawany, kto: req.kto.imie });
+  res.status(201).json({
+    zrodla: await zrodlaAdmina(req),
+    // Wejście RTMP właśnie się pojawiło — MediaMTX wystawi port dopiero po restarcie.
+    wymagaRestartuObrazu: !rtmpPrzed && jestRtmp(),
+  });
+}));
+
+app.put("/api/admin/zrodla/:id", wymagaj("admin"), wrap(async (req, res) => {
+  const lista = readZrodla();
+  const i = lista.findIndex((z) => z.id === req.params.id);
+  if (i < 0) return res.status(404).json({ blad: "Nie ma takiego źródła." });
+  const b = req.body || {};
+  const stare = lista[i];
+  // `id` i rodzaj są nietykalne: id siedzi w adresach strumieni i w aparaturze,
+  // a zmiana rodzaju to inne źródło — usuń i dodaj.
+  const nowe = {
+    ...stare,
+    nazwa: b.nazwa !== undefined ? String(b.nazwa).trim() || stare.id : stare.nazwa,
+    widoczne: b.widoczne !== undefined ? Boolean(b.widoczne) : stare.widoczne,
+    rtspGlowny: !stare.nadawany && b.rtspGlowny !== undefined ? String(b.rtspGlowny).trim() : stare.rtspGlowny,
+    rtspPomocniczy: !stare.nadawany && b.rtspPomocniczy !== undefined ? String(b.rtspPomocniczy).trim() : stare.rtspPomocniczy,
+  };
+  lista[i] = nowe;
+  try {
+    writeZrodla(lista);
+  } catch (e) {
+    return res.status(400).json({ blad: String(e.message || e) });
+  }
+  const adresZmieniony = nowe.rtspGlowny !== stare.rtspGlowny || nowe.rtspPomocniczy !== stare.rtspPomocniczy;
+  if (adresZmieniony) {
+    // Pomocniczy mógł zniknąć — jego ścieżkę trzeba zdjąć, upsert tego nie zrobi.
+    if (stare.rtspPomocniczy && !nowe.rtspPomocniczy) await mtx.deletePath(`${stare.id}_pom`).catch(() => {});
+    await zsynchronizujZrodlo(nowe);
+  }
+  dostep.zapiszZdarzenie("zrodla", `zmieniono źródło ${stare.id}`, { kto: req.kto.imie });
+  res.json({ zrodla: await zrodlaAdmina(req) });
+}));
+
+app.delete("/api/admin/zrodla/:id", wymagaj("admin"), wrap(async (req, res) => {
+  const lista = readZrodla();
+  const z = lista.find((x) => x.id === req.params.id);
+  if (!z) return res.status(404).json({ blad: "Nie ma takiego źródła." });
+  const rtmpPrzed = jestRtmp();
+  writeZrodla(lista.filter((x) => x.id !== z.id));
+  await mtx.deletePath(z.id).catch(() => {});
+  if (z.rtspPomocniczy) await mtx.deletePath(`${z.id}_pom`).catch(() => {});
+  generateMediamtxYml(readZrodla(), ustArchiwum);
+  nadawanie.usunHasloZrodla(z.id);
+  if (dostep.ustawienia().zrodloDomyslne === z.id) dostep.ustaw({ zrodloDomyslne: null });
+  dostep.zapiszZdarzenie("zrodla", `usunięto źródło ${z.id}`, { kto: req.kto.imie });
+  rejestr.info("zrodla", `usunięto źródło ${z.id}`, { kto: req.kto.imie });
+  res.json({
+    zrodla: await zrodlaAdmina(req),
+    // Zniknęło ostatnie źródło nadawane — port 1935 zamknie się dopiero po restarcie.
+    wymagaRestartuObrazu: rtmpPrzed && !jestRtmp(),
+  });
+}));
+
+app.post("/api/admin/zrodla/:id/nowe-haslo", wymagaj("admin"), wrap(async (req, res) => {
+  const z = readZrodla().find((x) => x.id === req.params.id);
+  if (!z) return res.status(404).json({ blad: "Nie ma takiego źródła." });
+  if (!z.nadawany) return res.status(400).json({ blad: "Hasło ma tylko źródło nadawane." });
+  nadawanie.noweHasloZrodla(z.id);
+  rejestr.ostrzezenie("nadawanie", `wymieniono hasło źródła ${z.id} — adres w aparaturze przestał działać`, { kto: req.kto.imie });
+  dostep.zapiszZdarzenie("zrodla", `nowe hasło źródła ${z.id}`, { kto: req.kto.imie });
+  res.json({ zrodla: await zrodlaAdmina(req) });
+}));
 
 app.get("/api/adresy", wymagaj("admin"), wrap(async (_req, res) => {
   const adresy = [];

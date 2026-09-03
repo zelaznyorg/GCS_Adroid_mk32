@@ -72,7 +72,7 @@ const linkDo = (kod) => `${window.location.origin}/#z=${kod}`;
 
 const NA_LOKALNYM = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 
-export default function Admin({ zrodla, naZamknij, panel, naPanel }) {
+export default function Admin({ zrodla, naZmianeZrodel, naZamknij, panel, naPanel }) {
   const [stan, setStan] = useState(null);
   const [adresy, setAdresy] = useState(null);
   const [dziennik, setDziennik] = useState([]);
@@ -86,6 +86,66 @@ export default function Admin({ zrodla, naZamknij, panel, naPanel }) {
   const [rola, setRola] = useState("widz");
   const [waznosc, setWaznosc] = useState(1);      // domyślnie 1 dzień
   const [jednorazowe, setJednorazowe] = useState(true);
+
+  // ---- źródła obrazu (Panorama: wiele dronów, hasło na źródło) ----
+  const [zrodlaAdm, setZrodlaAdm] = useState(null);
+  const [noweZrodlo, setNoweZrodlo] = useState({ rodzaj: "nadawane", nazwa: "", rtspGlowny: "" });
+  // Usunięcie źródła zabiera obraz każdemu, kto na nie patrzy — dwa kliknięcia,
+  // jak przy restarcie usługi; uzbrojenie mija po 5 s.
+  const [usunUzbrojone, setUsunUzbrojone] = useState(null);
+  const [pokazHaslo, setPokazHaslo] = useState({});
+  const [uwagaZrodel, setUwagaZrodel] = useState(null);
+
+  const pobierzZrodla = useCallback(() => {
+    api("/api/admin/zrodla").then(setZrodlaAdm).catch((e) => setBlad(String(e.message || e)));
+  }, []);
+
+  useEffect(() => {
+    pobierzZrodla();
+    const t = setInterval(pobierzZrodla, ODSWIEZAJ_MS);
+    return () => clearInterval(t);
+  }, [pobierzZrodla]);
+
+  useEffect(() => {
+    if (!usunUzbrojone) return undefined;
+    const t = setTimeout(() => setUsunUzbrojone(null), 5000);
+    return () => clearTimeout(t);
+  }, [usunUzbrojone]);
+
+  // Zmiana źródeł ma być widoczna od razu: tu (lista admina) i na ekranie głównym
+  // (mozaika, lista widza) — stąd oba odświeżenia.
+  const dzialanieZrodel = (obietnica) =>
+    obietnica
+      .then((o) => {
+        setBlad(null);
+        if (o?.zrodla) setZrodlaAdm((z) => ({ ...(z || {}), zrodla: o.zrodla }));
+        setUwagaZrodel(
+          o?.wymagaRestartuObrazu
+            ? "Zmieniło się, czy stacja przyjmuje nadawanie (port 1935). MediaMTX otworzy go dopiero po restarcie usługi OBRAZ — panel STACJA."
+            : null
+        );
+        pobierzZrodla();
+        naZmianeZrodel?.();
+        api("/api/admin/dziennik?ile=40").then((d) => setDziennik(d.dziennik || [])).catch(() => {});
+      })
+      .catch((e) => setBlad(String(e.message || e)));
+
+  const dodajZrodlo = () => {
+    const cialo = { rodzaj: noweZrodlo.rodzaj, nazwa: noweZrodlo.nazwa.trim() };
+    if (noweZrodlo.rodzaj === "pobierane") cialo.rtspGlowny = noweZrodlo.rtspGlowny.trim();
+    dzialanieZrodel(api("/api/admin/zrodla", { method: "POST", body: cialo })).then(() =>
+      setNoweZrodlo({ rodzaj: "nadawane", nazwa: "", rtspGlowny: "" })
+    );
+  };
+
+  const usunZrodlo = (id) => {
+    if (usunUzbrojone !== id) {
+      setUsunUzbrojone(id);
+      return;
+    }
+    setUsunUzbrojone(null);
+    dzialanieZrodel(api(`/api/admin/zrodla/${encodeURIComponent(id)}`, { method: "DELETE" }));
+  };
 
   const odswiez = useCallback(() => {
     api("/api/admin/stan").then(setStan).catch((e) => setBlad(String(e.message || e)));
@@ -354,6 +414,161 @@ export default function Admin({ zrodla, naZamknij, panel, naPanel }) {
               )}
             </tbody>
           </table>
+        </section>
+
+        {/* ---- źródła obrazu: drony i kamery, które stacja pokazuje ---- */}
+        <section>
+          <div className="rzad rozstrzelony">
+            <div className="etykieta">
+              ŹRÓDŁA OBRAZU — {zrodlaAdm?.zrodla?.length ?? "…"} z {zrodlaAdm?.maks ?? 6}
+            </div>
+            <span className="przypis">
+              jedno źródło = pełny ekran · dwa i więcej = mozaika kafelków · najwyżej {zrodlaAdm?.maks ?? 6}
+            </span>
+          </div>
+          {uwagaZrodel && <p className="przypis blad">{uwagaZrodel}</p>}
+
+          <table className="tabela">
+            <tbody>
+              {(zrodlaAdm?.zrodla || []).map((z) => (
+                <tr key={z.id}>
+                  <td>
+                    <span className={`dioda ${z.zywe ? "ok" : ""}`} title={z.zywe ? "strumień idzie" : z.nadawany ? "czeka na nadawcę" : "nikt nie ogląda — pobieranie na żądanie"}>
+                      {z.zywe ? "NADAJE" : z.nadawany ? "CZEKA" : "GOTOWE"}
+                    </span>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="pole"
+                      defaultValue={z.nazwa}
+                      title="Nazwa widoczna dla widzów — zmiana zapisuje się po wyjściu z pola"
+                      onBlur={(e) => {
+                        const nazwa = e.target.value.trim();
+                        if (nazwa && nazwa !== z.nazwa) {
+                          dzialanieZrodel(api(`/api/admin/zrodla/${encodeURIComponent(z.id)}`, { method: "PUT", body: { nazwa } }));
+                        }
+                      }}
+                    />
+                    <div className="przypis drobne">
+                      <code>{z.id}</code> · {z.nadawany ? "nadawane (dron wypycha obraz)" : "pobierane (stacja ściąga RTSP)"}
+                      {z.czytelnikow ? ` · ogląda: ${z.czytelnikow}` : ""}
+                    </div>
+                    {z.nadawany && (
+                      <div className="przypis drobne">
+                        RTMP (Pilot 2 / DJI Fly):{" "}
+                        <code className="endpoint maly" onClick={zaznacz} title="Kliknij, żeby zaznaczyć">
+                          {pokazHaslo[z.id] ? z.adresRtmp : z.adresRtmp.replace(/pass=.*$/, "pass=••••••••")}
+                        </code>
+                        <br />
+                        APK zrzutu ekranu: adres <code>{z.adresZrzutu}</code>, hasło{" "}
+                        <code onClick={zaznacz} title="Kliknij, żeby zaznaczyć">{pokazHaslo[z.id] ? z.haslo : "••••••••"}</code>
+                      </div>
+                    )}
+                    {!z.nadawany && (
+                      <div className="przypis drobne">
+                        <code>{z.rtspGlowny}</code>
+                        {z.rtspPomocniczy ? <> · pomocniczy <code>{z.rtspPomocniczy}</code></> : null}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <div className="rzad">
+                      <button
+                        type="button"
+                        className={`przelacznik drobny ${z.widoczne ? "wlaczony" : ""}`}
+                        onClick={() => dzialanieZrodel(api(`/api/admin/zrodla/${encodeURIComponent(z.id)}`, { method: "PUT", body: { widoczne: !z.widoczne } }))}
+                        title={z.widoczne ? "Widzowie widzą to źródło — kliknij, żeby ukryć" : "Ukryte przed widzami — kliknij, żeby pokazać"}
+                      >
+                        {z.widoczne ? "WIDOCZNE" : "UKRYTE"}
+                      </button>
+                      {z.nadawany && (
+                        <>
+                          <button
+                            type="button"
+                            className="przelacznik drobny"
+                            onClick={() => setPokazHaslo((p) => ({ ...p, [z.id]: !p[z.id] }))}
+                            title="Hasło i pełny adres pokazujemy tylko na żądanie — ekran bywa oglądany przez ramię"
+                          >
+                            {pokazHaslo[z.id] ? "SCHOWAJ HASŁO" : "POKAŻ HASŁO"}
+                          </button>
+                          <button
+                            type="button"
+                            className="przelacznik drobny"
+                            onClick={() => dzialanieZrodel(api(`/api/admin/zrodla/${encodeURIComponent(z.id)}/nowe-haslo`, { method: "POST" }))}
+                            title="Nowe hasło — adres wpisany w aparaturze przestanie działać"
+                          >
+                            NOWE HASŁO
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className={`przelacznik drobny ${usunUzbrojone === z.id ? "pilne" : ""}`}
+                        onClick={() => usunZrodlo(z.id)}
+                        title="Usuwa źródło i jego ścieżkę — obraz zniknie każdemu, kto na nie patrzy"
+                      >
+                        {usunUzbrojone === z.id ? "NA PEWNO?" : "USUŃ"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {(zrodlaAdm?.zrodla?.length ?? 0) < (zrodlaAdm?.maks ?? 6) ? (
+            <div className="rzad">
+              <label className="pole-etykieta">
+                RODZAJ
+                <select
+                  className="pole"
+                  value={noweZrodlo.rodzaj}
+                  onChange={(e) => setNoweZrodlo((n) => ({ ...n, rodzaj: e.target.value }))}
+                >
+                  <option value="nadawane">dron DJI — nadaje do stacji</option>
+                  <option value="pobierane">kamera IP — stacja pobiera RTSP</option>
+                </select>
+              </label>
+              <label className="pole-etykieta rozciagnij">
+                NAZWA
+                <input
+                  type="text"
+                  className="pole"
+                  placeholder={noweZrodlo.rodzaj === "nadawane" ? "np. Mavic 3T" : "np. Kamera analogowa"}
+                  value={noweZrodlo.nazwa}
+                  onChange={(e) => setNoweZrodlo((n) => ({ ...n, nazwa: e.target.value }))}
+                />
+              </label>
+              {noweZrodlo.rodzaj === "pobierane" && (
+                <label className="pole-etykieta rozciagnij">
+                  ADRES RTSP
+                  <input
+                    type="text"
+                    className="pole"
+                    placeholder="rtsp://127.0.0.1:8554/uav"
+                    value={noweZrodlo.rtspGlowny}
+                    onChange={(e) => setNoweZrodlo((n) => ({ ...n, rtspGlowny: e.target.value }))}
+                  />
+                </label>
+              )}
+              <button
+                type="button"
+                className="przelacznik"
+                disabled={!noweZrodlo.nazwa.trim() || (noweZrodlo.rodzaj === "pobierane" && !/^rtsps?:\/\//i.test(noweZrodlo.rtspGlowny.trim()))}
+                onClick={dodajZrodlo}
+              >
+                DODAJ ŹRÓDŁO
+              </button>
+            </div>
+          ) : (
+            <p className="przypis">Komplet — więcej kafelków przeglądarka na stacji nie zdekoduje. Usuń któreś, żeby dodać nowe.</p>
+          )}
+          <p className="przypis">
+            Dron DJI dostaje własne hasło: to nim mówi stacji, kim jest — w adresie RTMP dla
+            Pilota 2 albo w aplikacji zrzutu ekranu na aparaturze. Ukryte źródło ma ścieżkę
+            i przyjmuje obraz, ale nie trafia na listę widza ani do mozaiki.
+          </p>
         </section>
 
         {/* ---- łącza i adresy ---- */}

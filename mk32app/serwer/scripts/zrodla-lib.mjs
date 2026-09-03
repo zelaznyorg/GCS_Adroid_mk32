@@ -22,6 +22,15 @@ export const MEDIAMTX_YML_PATH = join(ROOT, "mediamtx", "mediamtx.yml");
 export const ID_RE = /^[A-Za-z0-9_-]+$/;
 
 /**
+ * Najwyżej tyle źródeł naraz. Nie jest to granica konfiguracji, tylko wydajności:
+ * mozaika na ekranie głównym otwiera po jednym połączeniu WebRTC na źródło, a każde
+ * to osobne dekodowanie H.264 w przeglądarce — na malinie bez sprzętu do tego
+ * (dok/GCS_RPI5.md). Sześć kafelków 3×2 to tyle, ile da się jeszcze rozróżnić
+ * z odległości wyciągniętej ręki. Decyzja Toma, 2026-09-03.
+ */
+export const MAKS_ZRODEL = 6;
+
+/**
  * Port lokalnego wyjścia RTSP MediaMTX — dla NAGRYWARKI pulpitu i innych odbiorców
  * NA TEJ SAMEJ maszynie. Nasłuch jest przypięty do 127.0.0.1 w generateMediamtxYml,
  * więc ten numer nigdy nie jest widoczny z sieci.
@@ -98,6 +107,10 @@ export function normalizeZrodlo(z) {
     // (drony DJI po RTMP). Pole musi przetrwać normalizację, bo od niego zależy
     // i kształt ścieżki, i to, czy w ogóle otwieramy wejście RTMP.
     nadawany: Boolean(z.nadawany),
+    // Źródło można ZDEFINIOWAĆ, a jeszcze nie POKAZYWAĆ: dron w konfiguracji, ale nie
+    // w powietrzu. Ukryte nie trafia na listę widza ani do mozaiki; ścieżka w MediaMTX
+    // istnieje, więc nadawca może już próbować, a admin widzi, czy coś przyszło.
+    widoczne: z.widoczne !== false,
   };
 }
 
@@ -143,6 +156,9 @@ export function readTelemetria() {
 }
 
 export function writeZrodla(zrodla, telemetria) {
+  if (zrodla.length > MAKS_ZRODEL) {
+    throw new Error(`Najwyżej ${MAKS_ZRODEL} źródeł naraz — więcej kafelków przeglądarka na stacji nie zdekoduje.`);
+  }
   const seen = new Set();
   for (const z of zrodla) {
     const err = validateZrodlo(z);
@@ -155,6 +171,7 @@ export function writeZrodla(zrodla, telemetria) {
       const o = { id: z.id, nazwa: z.nazwa, rtspGlowny: z.rtspGlowny };
       if (z.nadawany) { o.nadawany = true; delete o.rtspGlowny; }
       if (z.rtspPomocniczy) o.rtspPomocniczy = z.rtspPomocniczy;
+      if (z.widoczne === false) o.widoczne = false;
       return o;
     }),
     telemetria: telemetria || readTelemetria(),
