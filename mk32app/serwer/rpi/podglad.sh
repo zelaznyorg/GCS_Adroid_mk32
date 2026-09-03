@@ -5,7 +5,7 @@
 #   sh rpi/podglad.sh <adres>          uruchom pod wskazanym adresem
 #   sh rpi/podglad.sh --skrot          połóż skrót na pulpicie i w menu
 #
-# Kafelek pulpitu GCS (`/etc/gcs/aplikacje.d/30-dron15.json`) woła ten sam skrypt
+# Kafelek pulpitu GCS (`/etc/gcs/aplikacje.d/30-panorama.json`) woła ten sam skrypt
 # z adresem jako argumentem — żeby flagi okna były w JEDNYM miejscu, a nie w dwóch
 # rozjeżdżających się kopiach.
 #
@@ -49,7 +49,7 @@ ADRES=${ADRES:-http://localhost:8095}
 # Kod zaproszenia. Pusty = strona pokaże ekran wejścia. Przy stacji nie ma
 # klawiatury, więc kod musi być wpisany TUTAJ, raz — potem żeton siedzi w profilu.
 KOD=${KOD:-}
-PROFIL=${PROFIL:-$HOME/.local/share/dron15-podglad}
+PROFIL=${PROFIL:-$HOME/.local/share/panorama-podglad}
 
 CHROMIUM=$(command -v chromium-browser || command -v chromium || true)
 [ -n "$CHROMIUM" ] || { echo "BŁĄD: nie ma chromium." >&2; exit 1; }
@@ -77,7 +77,7 @@ if [ "$1" = "--skrot" ]; then
   [ "$(id -u)" != 0 ] || { echo "BŁĄD: NIE przez sudo — skrót ma trafić do pulpitu człowieka." >&2; exit 1; }
   for GDZIE in "$HOME/Desktop" "$HOME/Pulpit" "$HOME/.local/share/applications"; do
     [ -d "$GDZIE" ] || continue
-    PLIK="$GDZIE/dron15-podglad.desktop"
+    PLIK="$GDZIE/panorama-podglad.desktop"
     # ⛔ Skrót MUSI nieść pełny adres z kodem. Wcześniej `Exec` był samym skryptem,
     # więc podwójne kliknięcie szło na `localhost` bez zaproszenia i bez znacznika
     # pokrętła — strona stawała na ekranie wejścia, z wyłączoną obsługą pokrętła.
@@ -92,7 +92,7 @@ if [ "$1" = "--skrot" ]; then
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=DRON 15 — podgląd
+Name=Panorama — podgląd
 Comment=Obraz, telemetria i mapa ze stacji. Pełny ekran, obsługa pokrętłem.
 Exec=$KATALOG/rpi/podglad.sh "$CEL"
 Icon=video-display

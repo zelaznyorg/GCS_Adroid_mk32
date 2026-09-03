@@ -36,7 +36,7 @@ export default function OknoOsobne({ okno, zrodlo }) {
   const stanObrazu = useWhep(adresWhep(), okno === "obraz" ? (zrodlo ?? "brak") : "brak", videoRef);
 
   useEffect(() => {
-    document.title = okno === "mapa" ? "DRON 15 — mapa" : "DRON 15 — obraz";
+    document.title = okno === "mapa" ? "Panorama — mapa" : "Panorama — obraz";
   }, [okno]);
 
   if (!zetonWidza) {

@@ -15,7 +15,7 @@
 // nigdy nie wstanie i aplikacja działa bez niego, tylko bez pamięci powłoki.
 // Szczegóły: dok/TELEFON.md §4.
 
-const WERSJA = "dron15-powloka-v1";
+const WERSJA = "panorama-powloka-v1";
 
 // Vite stempluje nazwy plików w /assets skrótem treści, więc każde wydanie ma
 // inne nazwy i nie da się podać starego pliku pod nowym adresem.

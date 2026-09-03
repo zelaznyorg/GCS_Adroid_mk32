@@ -1,4 +1,4 @@
-// Serwer podglądu DRON15 — strona, API, strumień telemetrii i dostęp użytkowników.
+// Panorama — serwer podglądu — strona, API, strumień telemetrii i dostęp użytkowników.
 // Opis architektury: dok/SERWER_PODGLADU.md, dostęp: dok/DOSTEP_I_UZYTKOWNICY.md
 //
 // Czego ten serwer NIE robi, celowo:

@@ -1,11 +1,11 @@
 #!/bin/sh
-# Instalacja serwera podglądu DRON15 na Raspberry Pi 5 (Raspberry Pi OS 64-bit).
+# Instalacja serwera podglądu Panorama na Raspberry Pi 5 (Raspberry Pi OS 64-bit).
 # Uruchamiać NA MALINIE, z katalogu projektu:  sudo sh rpi/instaluj.sh
 #
 # Co robi:
 #   1. sprawdza, czy to naprawdę arm64 i czy jest node
 #   2. instaluje zależności i buduje stronę
-#   3. zakłada katalog danych (/var/lib/dron15) i przenosi tam zrodla.json
+#   3. zakłada katalog danych (/var/lib/panorama) i przenosi tam zrodla.json
 #   4. instaluje jednostki systemd i włącza dwie z nich
 #   5. nadaje panelowi STACJA wąskie prawo do restartu usług i czytania dziennika
 #
@@ -16,7 +16,7 @@
 set -e
 
 KATALOG=$(cd "$(dirname "$0")/.." && pwd)
-DANE=${DANE:-/var/lib/dron15}
+DANE=${DANE:-/var/lib/panorama}
 # Usługi mają chodzić na koncie użytkownika, a nie roota: nic tu nie potrzebuje
 # uprawnień administratora, a porty są wysokie (8095, 8889, 8189, 9997).
 UZYTKOWNIK=${UZYTKOWNIK:-${SUDO_USER:-$(id -un)}}
@@ -61,6 +61,36 @@ su "$UZYTKOWNIK" -c "cd '$KATALOG/web' && npm install && npm run build"
 # Dane trzymamy POZA katalogiem projektu, żeby aktualizacja kodu (nadpisanie
 # katalogu przez rpi/wgraj.ps1) nie kasowała zaproszeń, ustawień ani nagrań.
 
+# ---- 3a. przenosiny ze starej nazwy (DRON 15 -> Panorama, 2026-09-03) ---------
+#
+# Stacja nazywała się „DRON 15 — podgląd" i tak nazywały się jej usługi, katalogi
+# i kafelek. Nazwa maszyny nie pasowała do stacji, która pokazuje wiele źródeł.
+# Ten krok jest IDEMPOTENTNY: robi coś tylko wtedy, gdy stara nazwa jeszcze istnieje,
+# a nowa nie — więc świeża instalacja i kolejne wgrania przechodzą przez niego pusto.
+STARE_DANE=/var/lib/dron15
+if [ -d "$STARE_DANE" ] && [ ! -d "$DANE" ]; then
+  powiedz "przenoszę dane stacji: $STARE_DANE -> $DANE"
+  # Zaproszenia, hasło nadawania i źródła to kilka KB — kopia zapasowa obok, na wszelki
+  # wypadek. Archiwum (setki MB) jedzie samym `mv`, bez kopii: to ta sama partycja.
+  tar -czf "/var/backups/panorama-dane-przed-przenosinami-$(date +%Y%m%d_%H%M%S).tgz"       -C "$STARE_DANE" --exclude=archiwum --exclude=logi . 2>/dev/null || true
+  mv "$STARE_DANE" "$DANE"
+fi
+for STARA in dron15-gcs dron15-mediamtx; do
+  if [ -f "/etc/systemd/system/$STARA.service" ]; then
+    powiedz "wyłączam starą jednostkę $STARA"
+    systemctl disable --now "$STARA" 2>/dev/null || true
+    rm -f "/etc/systemd/system/$STARA.service"
+  fi
+done
+[ -f /etc/sudoers.d/dron15-panel ] && { powiedz "usuwam stary /etc/sudoers.d/dron15-panel"; rm -f /etc/sudoers.d/dron15-panel; }
+# Kafelek pulpitu GCS: stary wpis zastępujemy nowym (ten sam numer 30 = to samo miejsce).
+if [ -f /etc/gcs/aplikacje.d/30-dron15.json ]; then
+  powiedz "kafelek pulpitu: 30-dron15.json -> 30-panorama.json"
+  install -m 0644 "$KATALOG/rpi/gcs-pulpit-30-panorama.json" /etc/gcs/aplikacje.d/30-panorama.json
+  rm -f /etc/gcs/aplikacje.d/30-dron15.json
+fi
+systemctl daemon-reload
+
 powiedz "katalog danych: $DANE"
 mkdir -p "$DANE/archiwum/tlog" "$DANE/archiwum/wideo" "$DANE/logi"
 if [ ! -f "$DANE/zrodla.json" ]; then
@@ -72,7 +102,7 @@ chown -R "$UZYTKOWNIK": "$DANE"
 # ---- 4. jednostki systemd --------------------------------------------------
 
 powiedz "instaluję jednostki systemd"
-for j in dron15-mediamtx dron15-gcs; do
+for j in panorama-mediamtx panorama-gcs; do
   sed -e "s#@KATALOG@#$KATALOG#g" \
       -e "s#@DANE@#$DANE#g" \
       -e "s#@UZYTKOWNIK@#$UZYTKOWNIK#g" \
@@ -82,7 +112,7 @@ for j in dron15-mediamtx dron15-gcs; do
 done
 
 systemctl daemon-reload
-systemctl enable dron15-mediamtx dron15-gcs
+systemctl enable panorama-mediamtx panorama-gcs
 
 # ---- 5. uprawnienia panelu STACJA -------------------------------------------
 #
@@ -99,13 +129,13 @@ for G in adm systemd-journal; do
   getent group "$G" >/dev/null 2>&1 && usermod -aG "$G" "$UZYTKOWNIK" || true
 done
 
-powiedz "zakładam /etc/sudoers.d/dron15-panel"
+powiedz "zakładam /etc/sudoers.d/panorama-panel"
 TYMCZASOWY=$(mktemp)
-sed "s#@UZYTKOWNIK@#$UZYTKOWNIK#g" "$KATALOG/rpi/dron15-panel.sudoers" > "$TYMCZASOWY"
+sed "s#@UZYTKOWNIK@#$UZYTKOWNIK#g" "$KATALOG/rpi/panorama-panel.sudoers" > "$TYMCZASOWY"
 # Uszkodzony plik w sudoers.d potrafi zablokować sudo na całej maszynie,
 # więc sprawdzamy go PRZED założeniem i przy błędzie po prostu odpuszczamy.
 if visudo -cf "$TYMCZASOWY" >/dev/null 2>&1; then
-  install -m 0440 -o root -g root "$TYMCZASOWY" /etc/sudoers.d/dron15-panel
+  install -m 0440 -o root -g root "$TYMCZASOWY" /etc/sudoers.d/panorama-panel
   powiedz "restart usług z panelu: włączony"
 else
   echo "UWAGA: wzorzec sudoers nie przeszedł kontroli — pomijam."
@@ -115,23 +145,23 @@ rm -f "$TYMCZASOWY"
 
 # ---- 6. start ---------------------------------------------------------------
 
-systemctl restart dron15-mediamtx
-systemctl restart dron15-gcs
+systemctl restart panorama-mediamtx
+systemctl restart panorama-gcs
 
 sleep 2
-systemctl --no-pager --lines=0 status dron15-mediamtx dron15-gcs || true
+systemctl --no-pager --lines=0 status panorama-mediamtx panorama-gcs || true
 
 echo
 powiedz "gotowe"
 echo "    strona:      http://$(hostname -I 2>/dev/null | awk '{print $1}'):8095"
-echo "    kod admina:  journalctl -u dron15-gcs | grep -A2 'PIERWSZE WEJŚCIE'"
-echo "    logi:        journalctl -u dron15-gcs -f    oraz  $DANE/logi/serwer.log"
+echo "    kod admina:  journalctl -u panorama-gcs | grep -A2 'PIERWSZE WEJŚCIE'"
+echo "    logi:        journalctl -u panorama-gcs -f    oraz  $DANE/logi/serwer.log"
 echo "    sprawdzenie: sh rpi/sprawdz.sh"
 echo
 echo "    PANEL STACJA w przeglądarce: przycisk STACJA na dole strony (rola admin)."
 echo "    Pokazuje usługi, zasilanie, sieć i dziennik — zamiast wchodzenia po ssh."
 echo "    Uwaga: przynależność do grupy adm działa od NASTĘPNEGO startu usługi,"
-echo "    więc jeśli dziennik jest pusty, wykonaj:  sudo systemctl restart dron15-gcs"
+echo "    więc jeśli dziennik jest pusty, wykonaj:  sudo systemctl restart panorama-gcs"
 echo
 echo "    KIOSK NA MONITORACH instaluje się osobno, na koncie użytkownika:"
 echo "        sh rpi/kiosk.sh --zainstaluj"

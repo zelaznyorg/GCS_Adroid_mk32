@@ -302,7 +302,7 @@ export function generateMediamtxYml(zrodla, archiwum = readArchiwum()) {
     .join("\n");
 
   const yml = `# PLIK GENEROWANY AUTOMATYCZNIE z zrodla.json — nie edytuj ręcznie.
-# Serwer podglądu DRON15. Opis: dok/SERWER_PODGLADU.md
+# Panorama — serwer podglądu. Opis: dok/SERWER_PODGLADU.md
 #
 # MediaMTX wyłącznie PRZEPAKOWUJE strumienie (remux) — nie dekoduje i nie koduje.
 # Dlatego koszt procesora jest bliski zeru i nie zależy od kodeka ani liczby widzów.

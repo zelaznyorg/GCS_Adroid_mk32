@@ -5,7 +5,7 @@
 ; telemetria i panel mają dalej działać (i odwrotnie). Jedna jednostka
 ; podnosząca oba procesy ukrywałaby, który z nich się wywrócił.
 [Unit]
-Description=DRON15 — serwer obrazu (MediaMTX)
+Description=Panorama — serwer obrazu (MediaMTX)
 Documentation=file://@KATALOG@/README.md
 After=network-online.target
 Wants=network-online.target
@@ -25,7 +25,7 @@ ExecStart=@KATALOG@/bin/mediamtx @KATALOG@/mediamtx/mediamtx.yml
 Restart=always
 RestartSec=5
 ; Log idzie do journala. Własnego pliku MediaMTX tu nie zakłada —
-; `journalctl -u dron15-mediamtx` zastępuje logi/mediamtx.log ze start.sh.
+; `journalctl -u panorama-mediamtx` zastępuje logi/mediamtx.log ze start.sh.
 StandardOutput=journal
 StandardError=journal
 

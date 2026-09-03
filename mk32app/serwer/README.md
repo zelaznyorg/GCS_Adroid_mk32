@@ -1,4 +1,4 @@
-# Serwer podglądu DRON15
+# Panorama — serwer podglądu
 
 Odbiera obraz z głowicy ZR30 i telemetrię z MK32, rozdaje je przeglądarkom w sieci.
 Etap **M6** z [../PLAN.md](../PLAN.md). Architektura i uzasadnienia decyzji:
@@ -48,14 +48,14 @@ Pełna procedura: **[../dok/WDROZENIE_RPI.md](../dok/WDROZENIE_RPI.md)**.
 Z Windows, z tego katalogu:
 
 ```powershell
-.\rpi\wgraj.ps1 -Malina dron15.local -Uzytkownik pi -Instaluj
+.\rpi\wgraj.ps1 -Malina gsb.local -Uzytkownik pi -Instaluj
 ```
 
 Parametr nazywa się `-Malina`, **nie** `-Host` — `$Host` jest w PowerShellu zmienną
 tylko-do-odczytu i parametr o tej nazwie wywraca skrypt przy starcie.
 
 Na malinie robotę wykonuje `rpi/instaluj.sh`: zależności, budowa strony, katalog danych
-`/var/lib/dron15` i dwie jednostki systemd. Kiosk na monitorach instaluje się osobno
+`/var/lib/panorama` i dwie jednostki systemd. Kiosk na monitorach instaluje się osobno
 i **bez `sudo`** (potrzebuje sesji graficznej): `sh rpi/kiosk.sh --zainstaluj`.
 Przegląd stacji: `sh rpi/sprawdz.sh`.
 
@@ -63,11 +63,11 @@ Przegląd stacji: `sh rpi/sprawdz.sh`.
 |---|---|
 | `wgraj.ps1` | wysyłka z Windows przez SSH — bez `node_modules` i bez danych stacji |
 | `instaluj.sh` | instalacja na malinie, **przez `sudo`** |
-| `dron15-mediamtx.service` | obraz; `Restart=always` |
-| `dron15-gcs.service` | strona, API, telemetria, archiwum; **`Restart=on-failure`** |
-| `dron15-kiosk.service` + `kiosk.sh` | Chromium na monitorach; jednostka **użytkownika** |
+| `panorama-mediamtx.service` | obraz; `Restart=always` |
+| `panorama-gcs.service` | strona, API, telemetria, archiwum; **`Restart=on-failure`** |
+| `panorama-kiosk.service` + `kiosk.sh` | Chromium na monitorach; jednostka **użytkownika** |
 | `sprawdz.sh` | przegląd: zasilanie, dekoder HEVC, porty, MTU, zajętość archiwum |
-| `dron15-panel.sudoers` | wąskie prawo do restartu usług z panelu STACJA |
+| `panorama-panel.sudoers` | wąskie prawo do restartu usług z panelu STACJA |
 
 > **`on-failure`, nie `always`, dla serwera.** Wyjście kodem 0 znaczy „zatrzymany
 > świadomie" i wznawiania nie wymaga; kodem 1 — nieprzechwycony wyjątek, wtedy
@@ -78,9 +78,9 @@ Ręcznie, bez systemd (do prób), nadal działa `sh start.sh`. Binarka arm64 le�
 w `C:\Soft\nas-arm\mediamtx_arm64` (z projektu NRK) — `wgraj.ps1` wysyła ją sam,
 jednorazowo, bo ma 62 MB i nie ma sensu przepychać jej przy każdym wgraniu kodu.
 
-**Dane stacji leżą poza katalogiem projektu** (`/var/lib/dron15`), bo `/opt/dron15`
+**Dane stacji leżą poza katalogiem projektu** (`/var/lib/panorama`), bo `/opt/panorama`
 jest nadpisywane przy każdym wgraniu. Po instalacji edytuje się
-`/var/lib/dron15/zrodla.json`, nie ten tutaj.
+`/var/lib/panorama/zrodla.json`, nie ten tutaj.
 
 ### Windows (próby na biurku)
 
@@ -253,13 +253,13 @@ Rozróżnienie między dwoma panelami jest celowe:
 > **Skrypt `rpi/sprawdz.sh` zostaje.** Jest jedyną drogą wtedy, gdy serwer nie wstaje
 > — a wtedy panelu też nie ma.
 
-Restart usług wymaga wpisu w `/etc/sudoers.d/dron15-panel` (zakłada go `rpi/instaluj.sh`),
+Restart usług wymaga wpisu w `/etc/sudoers.d/panorama-panel` (zakłada go `rpi/instaluj.sh`),
 a dziennik — członkostwa w grupie `adm`. Bez tego panel działa dalej: pokazuje stan,
 a przy restarcie mówi wprost, czego brakuje.
 
 `server/stacja.mjs` uruchamia **wyłącznie** polecenia z zamkniętej listy, przez
 `execFile` z tablicą argumentów. Nazwa usługi z żądania nigdy nie trafia do polecenia
-wprost — sprawdzone: `dron15-gcs; rm -rf /` dostaje odpowiedź „Nieznana usługa”.
+wprost — sprawdzone: `panorama-gcs; rm -rf /` dostaje odpowiedź „Nieznana usługa”.
 
 ---
 

@@ -1,5 +1,5 @@
 # Uprawnienia panelu STACJA (web/src/Stacja.jsx → server/stacja.mjs).
-# Wzorzec instalowany przez rpi/instaluj.sh do /etc/sudoers.d/dron15-panel;
+# Wzorzec instalowany przez rpi/instaluj.sh do /etc/sudoers.d/panorama-panel;
 # @UZYTKOWNIK@ podstawia sed, a plik przed założeniem przechodzi `visudo -c`.
 #
 # ⛔ TO JEST CAŁA LISTA. Trzy polecenia, każde z nazwą usługi wpisaną na sztywno.
@@ -16,7 +16,7 @@
 #   - `stop` i `disable` — panel ma podnosić, nie gasić,
 #   - `journalctl` — czytanie dziennika załatwia członkostwo w grupie `adm`,
 #     bez podnoszenia uprawnień.
-@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart dron15-mediamtx
-@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart dron15-gcs
-@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart dron15-mediamtx
-@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart dron15-gcs
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart panorama-mediamtx
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /usr/bin/systemctl restart panorama-gcs
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart panorama-mediamtx
+@UZYTKOWNIK@ ALL=(root) NOPASSWD: /bin/systemctl restart panorama-gcs

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Uruchomienie serwera podglądu DRON15 na Raspberry Pi 5 (Raspberry Pi OS 64-bit).
+# Uruchomienie serwera podglądu Panorama na Raspberry Pi 5 (Raspberry Pi OS 64-bit).
 #
 # Wzorowane na DEPLOY-NAS.md z projektu NRK — ten sam układ sprawdził się na ARM.
 # Dwa procesy: MediaMTX (obraz) i Node (strona, API, telemetria). Żaden nie transkoduje.

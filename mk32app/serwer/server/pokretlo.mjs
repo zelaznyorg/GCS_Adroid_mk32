@@ -14,7 +14,7 @@
 //   enkoder → panel GC9A01 (właściciel GPIO)
 //                  │  /run/gcs/pokretlo.sock, JSON po linii
 //                  ▼
-//            dron15-gcs (ten moduł)
+//            panorama-gcs (ten moduł)
 //                  │  SSE /api/pokretlo
 //                  ▼
 //            przeglądarka — obrót przesuwa ognisko, klik naciska

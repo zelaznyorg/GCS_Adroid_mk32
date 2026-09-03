@@ -36,7 +36,7 @@ set -e
 
 KATALOG=$(cd "$(dirname "$0")/.." && pwd)
 ADRES=${ADRES:-http://localhost:8095}
-PROFILE=${PROFILE:-$HOME/.local/share/dron15-kiosk}
+PROFILE=${PROFILE:-$HOME/.local/share/panorama-kiosk}
 # Kod zaproszenia dla monitorów. Pusty = kiosk stanie na ekranie wejścia.
 KOD=${KOD:-}
 
@@ -55,19 +55,19 @@ if [ "$1" = "--zainstaluj" ]; then
   [ -n "$KOD" ] || echo "UWAGA: bez KOD=<kod> kiosk pokaże ekran wejścia zamiast obrazu (patrz nagłówek)."
   mkdir -p "$HOME/.config/systemd/user"
   sed -e "s#@KATALOG@#$KATALOG#g" -e "s#@ADRES@#$ADRES#g" -e "s#@KOD@#$KOD#g" \
-    "$KATALOG/rpi/dron15-kiosk.service" > "$HOME/.config/systemd/user/dron15-kiosk.service"
+    "$KATALOG/rpi/panorama-kiosk.service" > "$HOME/.config/systemd/user/panorama-kiosk.service"
   systemctl --user daemon-reload
-  systemctl --user enable --now dron15-kiosk
+  systemctl --user enable --now panorama-kiosk
   # Bez lingera kiosk wstaje dopiero po zalogowaniu się człowieka. Stacja ma
   # pokazywać obraz od włączenia prądu, więc włączamy — wymaga jednorazowo sudo.
   echo "Aby kiosk wstawał bez logowania:  sudo loginctl enable-linger $(id -un)"
-  systemctl --user --no-pager --lines=0 status dron15-kiosk || true
+  systemctl --user --no-pager --lines=0 status panorama-kiosk || true
   exit 0
 fi
 
 if [ "$1" = "--odinstaluj" ]; then
-  systemctl --user disable --now dron15-kiosk 2>/dev/null || true
-  rm -f "$HOME/.config/systemd/user/dron15-kiosk.service"
+  systemctl --user disable --now panorama-kiosk 2>/dev/null || true
+  rm -f "$HOME/.config/systemd/user/panorama-kiosk.service"
   systemctl --user daemon-reload
   echo "kiosk usunięty"
   exit 0

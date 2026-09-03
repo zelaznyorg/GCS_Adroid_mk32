@@ -1,6 +1,6 @@
 ﻿# Wgranie serwera podglądu z Windows na Raspberry Pi 5.
 #
-#   .\rpi\wgraj.ps1 -Malina dron15.local
+#   .\rpi\wgraj.ps1 -Malina gsb.local
 #   .\rpi\wgraj.ps1 -Malina 192.168.144.30 -Uzytkownik tomas -Instaluj
 #
 # Uwaga na nazwę parametru: -Malina, nie -Host. $Host to w PowerShellu zmienna
@@ -12,14 +12,14 @@
 #
 # Co wysyła: kod, konfigurację i binarkę MediaMTX arm64.
 # Czego NIE wysyła: node_modules (budują się na miejscu — mają natywne zależności
-# pod arm64), archiwum, logów ani dostep.json. Dane stacji leżą w /var/lib/dron15
+# pod arm64), archiwum, logów ani dostep.json. Dane stacji leżą w /var/lib/panorama
 # i mają PRZEŻYĆ aktualizację kodu — dlatego wgrywanie ich zabija sens tego podziału.
 
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)][Alias("Host")][string]$Malina,
   [string]$Uzytkownik = "pi",
-  [string]$Katalog = "/opt/dron15",
+  [string]$Katalog = "/opt/panorama",
   [string]$Mediamtx = "C:\Soft\nas-arm\mediamtx_arm64",
   [switch]$Instaluj,
   [switch]$Restart
@@ -44,7 +44,7 @@ Write-Host "    $($echo -join ' / ')"
 
 # ---- paczka ----------------------------------------------------------------
 
-$Paczka = Join-Path $env:TEMP "dron15-serwer.tar.gz"
+$Paczka = Join-Path $env:TEMP "panorama-serwer.tar.gz"
 Krok "pakuję $Zrodlo"
 # --exclude musi poprzedzać ścieżkę, inaczej bsdtar go zignoruje.
 tar --exclude="node_modules" --exclude="web/node_modules" --exclude="archiwum" `
@@ -56,13 +56,13 @@ Write-Host "    $mb MB"
 
 Krok "wysyłam"
 ssh $Cel "sudo mkdir -p '$Katalog' && sudo chown $Uzytkownik '$Katalog'"
-scp -q $Paczka "${Cel}:/tmp/dron15-serwer.tar.gz"
+scp -q $Paczka "${Cel}:/tmp/panorama-serwer.tar.gz"
 if ($LASTEXITCODE -ne 0) { throw "Wysyłka nie powiodła się." }
 # --warning=no-timestamp: malina nie ma zegara na baterii i po zimnym starcie, zanim
 # NTP zsynchronizuje, chodzi godziny do tyłu. tar ostrzega wtedy o plikach „z przyszłości”
 # na stderr — a PowerShell 5.1 pod $ErrorActionPreference=Stop każe za to całym
 # wgrywaniem, choć rozpakowanie się udało (2026-09-03: przerwane przed restartem usług).
-ssh $Cel "tar --warning=no-timestamp -xzf /tmp/dron15-serwer.tar.gz -C '$Katalog' && rm /tmp/dron15-serwer.tar.gz"
+ssh $Cel "tar --warning=no-timestamp -xzf /tmp/panorama-serwer.tar.gz -C '$Katalog' && rm /tmp/panorama-serwer.tar.gz"
 Remove-Item $Paczka -Force
 
 # ---- binarka MediaMTX ------------------------------------------------------
@@ -102,8 +102,8 @@ if ($Instaluj) {
   # $ErrorActionPreference=Stop bierze za błąd i urywa skrypt tuż po restarcie
   # (2026-09-03: restart poszedł, kontrola statusu już nie). `-n` zamiast pytania
   # o hasło: gdyby sudoers się zmieniło, ma paść od razu, nie wisieć.
-  ssh $Cel "sudo -n systemctl restart dron15-mediamtx dron15-gcs"
-  ssh $Cel "systemctl --no-pager --lines=0 status dron15-gcs"
+  ssh $Cel "sudo -n systemctl restart panorama-mediamtx panorama-gcs"
+  ssh $Cel "systemctl --no-pager --lines=0 status panorama-gcs"
 } else {
   Write-Host ""
   Write-Host "Pliki na miejscu. Dalej, na malinie:" -ForegroundColor Yellow

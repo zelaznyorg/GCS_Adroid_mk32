@@ -118,7 +118,7 @@ export default function Wejscie({ powod = "brak", naWejscie }) {
   return (
     <div className="ekran wejscie">
       <form className="karta-wejscia" onSubmit={wyslij}>
-        <h1>DRON 15 — PODGLĄD</h1>
+        <h1>PANORAMA</h1>
         <p className="przypis">{POWODY[powod] || POWODY.brak}</p>
 
         {/* Stacje, w których już byliśmy. Żeton jest przypisany do adresu, więc

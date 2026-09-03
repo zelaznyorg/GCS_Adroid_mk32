@@ -3,13 +3,13 @@
 ;
 ; Zastępuje `start.sh --pilnuj` — zadanie 4a.4 z TODO.md.
 [Unit]
-Description=DRON15 — serwer podglądu (strona, telemetria, archiwum)
+Description=Panorama — serwer podglądu (strona, telemetria, archiwum)
 Documentation=file://@KATALOG@/README.md
-After=network-online.target dron15-mediamtx.service
+After=network-online.target panorama-mediamtx.service
 ; `Wants`, nie `Requires`, dla MediaMTX: gdy serwer obrazu nie wstanie, strona
 ; i telemetria mają działać dalej. Panel pokaże wtedy zgaszoną diodę MEDIAMTX
 ; i to jest właściwa reakcja — nie zabieranie operatorowi wszystkiego naraz.
-Wants=network-online.target dron15-mediamtx.service
+Wants=network-online.target panorama-mediamtx.service
 
 ; Limit prób podnoszenia. Od systemd 229 te dwa klucze należą do [Unit];
 ; w [Service] dają ostrzeżenie przy ładowaniu jednostki.
@@ -52,14 +52,14 @@ PrivateTmp=yes
 ; więc te dwa katalogi muszą zostać zapisywalne mimo ProtectSystem.
 ReadWritePaths=@DANE@ @KATALOG@/mediamtx @KATALOG@/web/public
 
-; ⚠ CELOWY BRAK `NoNewPrivileges=yes` — TU, W ODRÓŻNIENIU OD dron15-mediamtx.
+; ⚠ CELOWY BRAK `NoNewPrivileges=yes` — TU, W ODRÓŻNIENIU OD panorama-mediamtx.
 ;
 ; `sudo` jest programem setuid i pod NoNewPrivileges nie podniesie uprawnień
 ; w ogóle. Zostawienie tej opcji tutaj znaczyłoby, że przycisk RESTART w panelu
 ; STACJA nigdy nie zadziała — i to bez żadnego czytelnego komunikatu, bo sudo
 ; odmawia zanim cokolwiek się wydarzy.
 ;
-; Co dostajemy w zamian za to ustępstwo: /etc/sudoers.d/dron15-panel wymienia
+; Co dostajemy w zamian za to ustępstwo: /etc/sudoers.d/panorama-panel wymienia
 ; TRZY pełne ścieżki poleceń, każdą z nazwą usługi wpisaną na sztywno. Nie ma
 ; tam gwiazdki, nie ma `stop`, nie ma `reboot`. Najgorsze, co przejęty żeton
 ; administratora może zrobić tą drogą, to zrestartować usługę, którą i tak

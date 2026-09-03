@@ -291,9 +291,9 @@ const DOMYSLNE = {
   appId: "",
   appKey: "",
   licencja: "",
-  nazwaPlatformy: "DRON 15 — stacja",
+  nazwaPlatformy: "Panorama — stacja",
   nazwaObszaru: "Stacja naziemna",
-  opis: "Telemetria i obraz na stacji DRON 15",
+  opis: "Telemetria i obraz na stacji Panorama",
   obszarId: "",
   uzytkownik: "dji",
 };

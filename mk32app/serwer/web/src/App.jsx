@@ -1,4 +1,4 @@
-// Klient webowy serwera podglądu DRON15.
+// Klient webowy serwera podglądu Panorama.
 //
 // Obraz jest tłem, dane leżą na nim (zasada 2 systemu projektowego — dok/UI.md).
 // To jest widok DLA WIDZA: pokazuje, nie steruje. Żadnego przycisku, który

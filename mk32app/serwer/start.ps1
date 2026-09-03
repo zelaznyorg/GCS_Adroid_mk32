@@ -1,4 +1,4 @@
-﻿# Uruchomienie serwera podglądu DRON15 na Windows — do prób na biurku.
+﻿# Uruchomienie serwera podglądu Panorama na Windows — do prób na biurku.
 # Wersja docelowa (RPi 5) startuje przez start.sh.
 #
 #   .\start.ps1

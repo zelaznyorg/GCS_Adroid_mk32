@@ -50,7 +50,7 @@ export default function Stacja({ naZamknij, panel, naPanel }) {
   // Restart usługi widzą wszyscy widzowie, więc jeden odruch dłoni to za mało.
   // Pierwsze kliknięcie uzbraja, drugie wykonuje; po 5 s uzbrojenie samo mija.
   const [uzbrojony, setUzbrojony] = useState(null);
-  const [dziennikUslugi, setDziennikUslugi] = useState("dron15-gcs");
+  const [dziennikUslugi, setDziennikUslugi] = useState("panorama-gcs");
   const [dziennik, setDziennik] = useState(null);
 
   const odswiez = useCallback((swiezo = false) => {

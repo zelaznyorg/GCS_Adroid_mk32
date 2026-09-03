@@ -2,7 +2,7 @@
 ; instaluje ją `sh rpi/kiosk.sh --zainstaluj` do ~/.config/systemd/user/.
 ; Systemowa nie ma dostępu do sesji graficznej i nie miałaby gdzie rysować.
 [Unit]
-Description=DRON15 — podgląd na monitorach (Chromium kiosk)
+Description=Panorama — podgląd na monitorach (Chromium kiosk)
 Documentation=file://@KATALOG@/rpi/kiosk.sh
 After=graphical-session.target
 PartOf=graphical-session.target

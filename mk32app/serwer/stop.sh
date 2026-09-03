@@ -1,5 +1,5 @@
 #!/bin/sh
-# Zatrzymuje serwer podglądu DRON15.
+# Zatrzymuje serwer podglądu Panorama.
 #
 # Przy trybie --pilnuj w logi/serwer.pid siedzi PID DOZORCY, nie samego serwera.
 # Zabicie samego dozorcy zostawiłoby działającego node'a, więc sprzątamy też po nim.

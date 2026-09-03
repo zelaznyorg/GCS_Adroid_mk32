@@ -27,13 +27,13 @@ import * as rejestr from "./rejestr.mjs";
 /** Zamknięta lista usług, których panel może dotknąć. */
 export const USLUGI = [
   {
-    id: "dron15-mediamtx",
+    id: "panorama-mediamtx",
     nazwa: "OBRAZ",
     opis: "MediaMTX — remux RTSP z ZR30 na WebRTC. Restart zrywa obraz wszystkim widzom.",
     zakres: "system",
   },
   {
-    id: "dron15-gcs",
+    id: "panorama-gcs",
     nazwa: "SERWER",
     opis: "Ta strona, API, telemetria i archiwum. Restart rozłącza także ten panel — wróci sam po kilku sekundach.",
     zakres: "system",
@@ -42,7 +42,7 @@ export const USLUGI = [
     ubijaNas: true,
   },
   {
-    id: "dron15-kiosk",
+    id: "panorama-kiosk",
     nazwa: "MONITORY",
     opis: "Chromium na monitorach stacji. Jednostka UŻYTKOWNIKA — bywa nieosiągalna z usługi systemowej.",
     zakres: "uzytkownik",
@@ -429,13 +429,13 @@ export async function dziennikUslugi(nazwa, ile = 80) {
  * `window.close()` przeglądarka odrzuca dla okien, których sama nie otworzyła
  * skryptem, więc na tym nie da się polegać. Zostaje zamknięcie procesu.
  *
- * ⚠ Wzorzec celuje **wyłącznie w nasz profil** (`dron15-podglad`), więc nie
+ * ⚠ Wzorzec celuje **wyłącznie w nasz profil** (`panorama-podglad`), więc nie
  * dotknie ani Chromium uruchomionego do czegoś innego, ani przeglądarki
  * z sąsiedniego kafelka pulpitu. Nie ma tu `sudo` — to ten sam użytkownik.
  */
 export function zamknijPodglad() {
   return new Promise((gotowe) => {
-    execFile("pkill", ["-f", "user-data-dir=.*dron15-podglad"], (blad) => {
+    execFile("pkill", ["-f", "user-data-dir=.*panorama-podglad"], (blad) => {
       // pkill zwraca 1, gdy nic nie pasowało — to nie jest awaria, tylko
       // „okna już nie ma". Rozróżniamy, żeby nie meldować sukcesu na pusto.
       const kod = blad?.code;

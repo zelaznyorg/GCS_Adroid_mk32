@@ -12,7 +12,7 @@
 #   3. czy MTU tunelu nie zabije obrazu przy telemetrii, która wygląda zdrowo
 #      (zadanie 2.3, najbardziej mylący objaw w całym projekcie).
 
-DANE=${DANE:-/var/lib/dron15}
+DANE=${DANE:-/var/lib/panorama}
 
 tytul() { echo; echo "── $* ──────────────────────────────────────────" | cut -c1-70; }
 jest()  { command -v "$1" >/dev/null 2>&1; }
@@ -75,10 +75,10 @@ elif jest chromium;        then echo "chromium:  $(chromium --version 2>/dev/nul
 else echo "chromium:  BRAK — kiosk nie ruszy"; fi
 
 tytul "USŁUGI"
-for U in dron15-mediamtx dron15-gcs; do
+for U in panorama-mediamtx panorama-gcs; do
   printf "%-18s %s\n" "$U" "$(systemctl is-active "$U" 2>/dev/null) / $(systemctl is-enabled "$U" 2>/dev/null)"
 done
-printf "%-18s %s\n" "dron15-kiosk" "$(systemctl --user is-active dron15-kiosk 2>/dev/null || echo 'brak (jednostka użytkownika)')"
+printf "%-18s %s\n" "panorama-kiosk" "$(systemctl --user is-active panorama-kiosk 2>/dev/null || echo 'brak (jednostka użytkownika)')"
 
 tytul "PORTY"
 # 9997 MA nasłuchiwać tylko na 127.0.0.1 — to API kontrolne MediaMTX.
@@ -136,4 +136,4 @@ if [ "$1" = "--kiosk" ]; then
 fi
 
 echo
-echo "Koniec przeglądu. Logi:  journalctl -u dron15-gcs -n 50"
+echo "Koniec przeglądu. Logi:  journalctl -u panorama-gcs -n 50"
