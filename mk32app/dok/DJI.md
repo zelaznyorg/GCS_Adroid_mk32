@@ -255,6 +255,16 @@ ręczne poprawki w nim znikają. Zmieniać `scripts/zrodla-lib.mjs`.
 
 ## 7. APK na aparaturę — zrzut ekranu kontrolera
 
+> ### ⚠ KOD APK PRZENIESIONY DO SmartGCS (2026-09-03)
+>
+> Decyzja Toma: *„to coś innego niż MK32, nie robić dodatkowego forka"*. Źródła
+> aplikacji są teraz w repozytorium **SmartGCS**, katalog **`dji/`** (samodzielny
+> projekt Gradle, moduł `:zrzut`, własny README z tabelą „co sprawdzone"). Historia
+> wcześniejszych zmian zostaje tu (`f9fa772`, `30c627c`). W tym repozytorium zostaje
+> **strona stacji**: odbiornik `server/zrzut.mjs`, furtka `nadawanie.mjs`, broker
+> `dji.mjs`, strona `web/public/dji.html` — bo to część serwera podglądu.
+> Opis niżej dotyczy działania aplikacji i pozostaje aktualny.
+
 Pomysł Toma: zamiast walczyć z tym, czego DJI nie udostępnia, **wziąć to, co widzi
 operator** — obraz z ekranu aparatury, razem z całą nakładką OSD.
 

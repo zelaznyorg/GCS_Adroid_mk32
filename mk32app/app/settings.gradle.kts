@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "dron15-cockpit"
 include(":cockpit")
-// APK na kontroler DJI — osobny moduł, bo to inne urzadzenie i inne zadanie.
-include(":zrzut")
+// APK na kontroler DJI (dawny modul `:zrzut`) przeniesiony 2026-09-03 do repozytorium
+// SmartGCS, katalog `dji/` — to soft dla innego urzadzenia niz MK32.

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Obwódka karty stanu i klawisza: grubsza, gdy stan coś znaczy. -->
-    <dimen name="obwodka_cienka">1dp</dimen>
-    <dimen name="obwodka_gruba">2dp</dimen>
-</resources>

@@ -55,7 +55,7 @@ Kolumna „sprzęt" mówi, czy zadanie wymaga drona pod napięciem.
 | ✅ 2.26 | **Telemetria DJI zbudowana** — broker MQTT w serwerze (`aedes`), przejściówka Cloud API → nasz `stan()`, strona `/dji.html` dla Pilot 2. Sprawdzone udawanym Pilotem przez prawdziwe API stacji | dok/DJI.md §3a |
 | 🔴 2.27 | ⛔ **Licencja Cloud API od DJI** — `appId`, `appKey`, `license` z konta deweloperskiego. Bez nich Pilot 2 nie załaduje modułu chmurowego i telemetria DJI nie ruszy. Tylko właściciel konta może je uzyskać | dok/DJI.md §3a |
 | 🟠 2.28 | Pola licencji DJI w panelu ADMIN — dziś ustawia się je tylko przez API | tamże |
-| ✅ 2.29 | **APK zrzutu ekranu aparatury DJI** — moduł `app/zrzut`, MediaProjection → H.264 → TCP → ffmpeg → RTMP. Buduje się; odbiór sprawdzony lokalnie (hasło, jeden nadawca, przekazanie do ffmpeg) | dok/DJI.md §7 |
+| ✅ 2.29 | **APK zrzutu ekranu aparatury DJI** — ⚠ **od 2026-09-03 w SmartGCS `dji/`** (przeniesiony, nie forkowany; tu zostaje odbiornik `serwer/server/zrzut.mjs`); wcześniej moduł `app/zrzut`, MediaProjection → H.264 → TCP → ffmpeg → RTMP. Buduje się; odbiór sprawdzony lokalnie (hasło, jeden nadawca, przekazanie do ffmpeg) | dok/DJI.md §7 |
 | 🔴 2.30 | ⛔ **Sprawdzić, czy DJI nie blokuje zrzutu (`FLAG_SECURE`)** — jeśli tak, obraz będzie czarny i nie da się tego obejść. Stacja zgłasza podejrzenie po przepływności; rozstrzyga spojrzenie na podgląd | tamże |
 | 🟠 2.31 | Wgrać `zrzut-debug.apk` na kontroler DJI i przejechać całą drogę — stacja była wyłączona przy budowaniu | tamże |
 | ✅ 2.32 | **Obsługa w locie: pauza zamiast zatrzymania** — zgoda brana raz, start/stop przełącza samo wysyłanie. Kafelek szybkich ustawień + powiadomienie + ekran; ponawianie łącza; ustawienia zablokowane w trakcie nadawania | dok/DJI.md §7 |
