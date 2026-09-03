@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ekran obsługi — Material 3, układ dwukolumnowy.
+
+  Kontroler jest szeroki i niski (7″ w poziomie), więc:
+    * lewa kolumna — STAN i DZIAŁANIE: karta stanu widoczna z odległości wyciągniętej
+      ręki i jeden wielki klawisz. To jest to, na co się patrzy i w co się trafia;
+    * prawa kolumna — USTAWIENIA: rzeczy dotykane raz przed lotem.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="?android:attr/colorBackground"
+    android:padding="14dp">
+
+    <!-- ============ LEWA: stan i działanie ============ -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DRON 15"
+            android:textColor="?attr/colorPrimary"
+            android:letterSpacing="0.28"
+            android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="zrzut ekranu aparatury"
+            android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/kartaStanu"
+            style="@style/Karta.Dron15"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/napisStanu"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.04"
+                    android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                    android:text="NIE NADAJE" />
+
+                <!-- Dwa odczyty obok siebie: przepływność mówi, czy obraz naprawdę
+                     płynie, czas — jak długo. Razem wystarczają, żeby ocenić stan
+                     bez czytania zdań. -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/wartoscPrzeplyw"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:textAppearance="?attr/textAppearanceTitleLarge" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="PRZEPŁYWNOŚĆ"
+                            android:letterSpacing="0.12"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textAppearance="?attr/textAppearanceLabelSmall" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/wartoscCzas"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:textAppearance="?attr/textAppearanceTitleLarge" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CZAS NADAWANIA"
+                            android:letterSpacing="0.12"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textAppearance="?attr/textAppearanceLabelSmall" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/szczegol"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="gotowe"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textAppearance="?attr/textAppearanceBodySmall" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/klawiszGlowny"
+            style="@style/Klawisz.Glowny"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="START — NADAWAJ EKRAN" />
+
+        <!--
+          UKRYJ i ZAKOŃCZ obok siebie: pierwsze usuwa aplikację z widoku (obraz leci
+          dalej), drugie kończy przechwytywanie. Dwa różne skutki, więc dwa klawisze
+          — mylić ich nie wolno.
+        -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/klawiszUkryj"
+                style="@style/Klawisz.Drugi"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="UKRYJ" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/klawiszKoniec"
+                style="@style/Klawisz.Drugi"
+                android:layout_width="0dp"
+                android:layout_weight="1.4"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"
+                android:text="ZAKOŃCZ" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="W locie: kafelek szybkich ustawień albo powiadomienie — bez wracania tutaj i bez pytania o zgodę."
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textAppearance="?attr/textAppearanceBodySmall" />
+    </LinearLayout>
+
+    <!-- ============ PRAWA: ustawienia ============ -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.1"
+        android:layout_marginStart="14dp"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Karta.Dron15"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="POŁĄCZENIE ZE STACJĄ"
+                        android:letterSpacing="0.12"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceLabelMedium" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/warstwaAdres"
+                        style="@style/Pole.Dron15"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Adres stacji (host:port)">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/poleAdres"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:maxLines="1" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/warstwaHaslo"
+                        style="@style/Pole.Dron15"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="Hasło urządzenia (panel ADMIN)">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/poleHaslo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:maxLines="1" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/klawiszProba"
+                        style="@style/Klawisz.Drugi"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        app:icon="@android:drawable/ic_menu_send"
+                        android:text="SPRAWDŹ ŁĄCZE" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Karta.Dron15"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="JAKOŚĆ OBRAZU"
+                        android:letterSpacing="0.12"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Klatki, skala i przepływność chodzą razem."
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                    <!-- Segmentowany wybór to materiałowy odpowiednik tego, czego tu
+                         trzeba: jeden z trzech, widoczny na raz, duże pola dotyku. -->
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/wyborJakosci"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/jakoscLekka"
+                            style="@style/Pigulka.Jakosc"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="LEKKA" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/jakoscZwykla"
+                            style="@style/Pigulka.Jakosc"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="ZWYKŁA" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/jakoscOstra"
+                            style="@style/Pigulka.Jakosc"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="OSTRA" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <TextView
+                        android:id="@+id/podsumowanieJakosci"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/przelacznikChowania"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:checked="true"
+                        android:minHeight="48dp"
+                        android:text="Chowaj aplikację po starcie"
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/klawiszKafelek"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:visibility="gone"
+                android:text="DODAJ KAFELEK DO SZYBKICH USTAWIEŃ" />
+
+            <TextView
+                android:id="@+id/wskazowkaKafelka"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Kafelek dodaj raz ręcznie: ściągnij pasek, ołówek, przeciągnij „Zrzut ekranu”."
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

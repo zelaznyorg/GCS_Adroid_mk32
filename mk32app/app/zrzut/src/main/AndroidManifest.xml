@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Obraz idzie po sieci lokalnej do stacji. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      Usługa pierwszoplanowa jest wymagana, żeby przechwytywanie ekranu przeżyło
+      przejście aplikacji w tło — a przecież cały sens polega na tym, że operator
+      patrzy na DJI Pilot 2, nie na nas.
+      ⛔ Bez `FOREGROUND_SERVICE_MEDIA_PROJECTION` (Android 14+) system ubija usługę
+      natychmiast po starcie i zrzut kończy się, zanim się zacznie.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Android 13+ nie pokaże powiadomienia bez zgody, a powiadomienie jest tu
+         PILOTEM: to z niego wstrzymuje się obraz w locie. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="DRON 15 — zrzut ekranu"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.Dron15">
+
+        <activity
+            android:name=".GlownaAktywnosc"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".UslugaZrzutu"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <!--
+          Kafelek szybkich ustawień: start i stop obrazu z dowolnej aplikacji,
+          jednym przeciągnięciem paska. W locie to jest główna droga obsługi.
+        -->
+        <service
+            android:name=".KafelekZrzutu"
+            android:exported="true"
+            android:icon="@android:drawable/presence_video_online"
+            android:label="Zrzut ekranu"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

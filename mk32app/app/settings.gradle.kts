@@ -15,3 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "dron15-cockpit"
 include(":cockpit")
+// APK na kontroler DJI — osobny moduł, bo to inne urzadzenie i inne zadanie.
+include(":zrzut")

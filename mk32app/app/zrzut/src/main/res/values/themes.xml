@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Motyw aplikacji — Material 3 (Material You).
+
+  ### Dlaczego ciemny na sztywno, a nie DayNight
+
+  Aparatura pracuje w polu, często w słońcu, a obok niej stoi ekran stacji, który
+  jest ciemny. Jasny motyw dawałby dwa różne systemy w jednym stanowisku i oślepiał
+  o zmierzchu. Stąd `Dark`, nie `DayNight`.
+
+  ### Barwa wiodąca
+
+  Zielony jest **znaczący, nie ozdobny**: w tej aplikacji zielone jest wyłącznie to,
+  co dotyczy „obraz idzie". Pomarańczowy zarezerwowany dla wstrzymania.
+
+  ⚠ Na Androidzie 12+ `DynamicColors` podmienia paletę na pobraną z tapety systemu
+  (właściwe Material You) — patrz `GlownaAktywnosc.onCreate`. Kontrolery DJI to
+  Android 9–11, więc tam zostaje paleta poniżej i to ona jest wersją obowiązującą.
+-->
+<resources>
+
+    <style name="Theme.Dron15" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/zielony</item>
+        <item name="colorOnPrimary">@color/tlo</item>
+        <item name="colorPrimaryContainer">@color/zielony_ciemny</item>
+        <item name="colorOnPrimaryContainer">@color/zielony</item>
+
+        <!-- ⛔ Barwy drugorzędne są NEUTRALNE, nie pomarańczowe. Komponenty tonalne
+             Material biorą `colorSecondaryContainer` na tło, więc pomarańcz wylewał się
+             na zwykłe klawisze — a pomarańczowy ma w tej aplikacji znaczyć wyłącznie
+             „obraz wstrzymany". Stan malujemy jawnie w kodzie, nie motywem. -->
+        <item name="colorSecondary">@color/tekst</item>
+        <item name="colorOnSecondary">@color/tlo</item>
+        <item name="colorSecondaryContainer">@color/karta_jasna</item>
+        <item name="colorOnSecondaryContainer">@color/tekst</item>
+
+        <item name="android:colorBackground">@color/tlo</item>
+        <item name="colorSurface">@color/karta</item>
+        <item name="colorSurfaceVariant">@color/karta_jasna</item>
+        <item name="colorOnSurface">@color/tekst</item>
+        <item name="colorOnSurfaceVariant">@color/tekst_slaby</item>
+        <item name="colorOutline">@color/obwodka</item>
+
+        <item name="colorError">@color/czerwony</item>
+
+        <!-- Pełny ekran: pasek systemowy zabierał wysokość, której kolumnie ustawień
+             brakowało. Pasek powiadomień nadal ściąga się gestem. -->
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Karta z wyraźną obwódką: na ciemnym tle sam cień nie oddziela treści. -->
+    <style name="Karta.Dron15" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="contentPadding">12dp</item>
+    </style>
+
+    <!-- Klawisz główny: duży, bo w rękawicach ma być nie do pominięcia. -->
+    <style name="Klawisz.Glowny" parent="Widget.Material3.Button">
+        <item name="android:minHeight">64dp</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:maxLines">1</item>
+        <item name="cornerRadius">16dp</item>
+        <!-- Material dokłada własne odstępy pionowe; przy dużym klawiszu rosną
+             ponad miarę i zjadają wysokość potrzebną kolumnie ustawień. -->
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <!-- Segmentowany wybór jakości: zaznaczony zielony, bo dotyczy obrazu. -->
+    <style name="Pigulka.Jakosc" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <!-- ⚠ Klawisz Material ma spore odstępy poziome i minimalną szerokość; przy
+             trzech w rzędzie napisy wychodziły ucięte („LEK…"). Ścinamy odstępy,
+             zerujemy minimalną szerokość i schodzimy o stopień z krojem. -->
+        <!-- ⚠ Sam `paddingStart/End` nie wystarczył: styl klawisza Material ustawia
+             też `paddingLeft/Right`, a te wygrywają. Trzeba nadpisać oba. -->
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+        <item name="android:paddingLeft">2dp</item>
+        <item name="android:paddingRight">2dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="backgroundTint">@color/jakosc_tlo</item>
+        <item name="android:textColor">@color/jakosc_tekst</item>
+    </style>
+
+    <style name="Klawisz.Drugi" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="backgroundTint">@color/karta_jasna</item>
+        <item name="android:textColor">@color/tekst</item>
+        <item name="iconTint">@color/tekst_slaby</item>
+    </style>
+
+    <style name="Pole.Dron15" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+    </style>
+</resources>
