@@ -8,5 +8,6 @@
   "wymaga": {
     "usluga": "panorama-gcs"
   },
-  "pelny-ekran": true
+  "pelny-ekran": true,
+  "ikona": "video-display-symbolic"
 }
