@@ -97,7 +97,12 @@ if ($Instaluj) {
 } elseif ($Restart) {
   Krok "przebudowuję stronę i restartuję usługi"
   ssh $Cel "cd '$Katalog' && npm install --omit=dev && cd web && npm install && npm run build"
-  ssh -t $Cel "sudo systemctl restart dron15-mediamtx dron15-gcs"
+  # Bez `-t`: terminal nie jest potrzebny (sudoers ma NOPASSWD dla tych dwóch poleceń),
+  # a ssh z `-t` dopisuje na stderr „Connection to … closed.”, co PowerShell 5.1 pod
+  # $ErrorActionPreference=Stop bierze za błąd i urywa skrypt tuż po restarcie
+  # (2026-09-03: restart poszedł, kontrola statusu już nie). `-n` zamiast pytania
+  # o hasło: gdyby sudoers się zmieniło, ma paść od razu, nie wisieć.
+  ssh $Cel "sudo -n systemctl restart dron15-mediamtx dron15-gcs"
   ssh $Cel "systemctl --no-pager --lines=0 status dron15-gcs"
 } else {
   Write-Host ""

@@ -152,5 +152,21 @@ z `generateWebConfig()`.
 Kod nagrywarki żyje dziś **tylko na malinie**, w `~/gcs-src/pulpit/gcs_pulpit/`
 (brak repozytorium git, brak zdalnego), i jest zszyty z pulpitem przez `okno.py`
 (belka `⏺ REC`, kafelki, protokół panelu GC9A01). Decyzja Toma: **wydzielić ją do
-osobnego katalogu w Smart GCS**, żeby dało się ją rozwijać niezależnie. Zakres,
-sprzężenia i plan — do opisania po zdjęciu źródeł z maliny.
+osobnego katalogu w Smart GCS**, żeby dało się ją rozwijać niezależnie.
+**Analiza sprzężeń, granica cięcia i plan trzech kroków: `NAGRYWARKA_WYDZIELENIE.md`.**
+
+### Drugie wgranie (2026-09-03, 17:31) — domknięte
+
+Po powrocie maliny (uptime 2 min — **zniknięcie było restartem bez czystego
+zamknięcia**: ostatni wpis poprzedniego rozruchu to moje rozłączenie SSH o 15:54:52,
+żadnego `Stopping…`; `vcgencmd get_throttled` po starcie `0x0`, ale ten licznik
+zeruje się przy rozruchu i o przyczynie nie mówi nic) — `wgraj.ps1 -Restart`
+przeszło z poprawionym `tar`. Zegar znów spóźniony o czas przestoju (przywracany
+z pliku, nie z NTP) — ustawiony ponownie z laptopa.
+
+⚠ **Stary kod odtworzył `web/public/zrodla.json` przy rozruchu po awarii**, zanim
+weszło nowe wgranie, a Vite skopiował go do `dist/`. Pliki usunięte ręcznie;
+`GET /zrodla.json` zwraca teraz **stronę** (fallback aplikacji jednostronicowej,
+`app.get("*")` → `index.html`), nie listę; `GET /api/zrodla` bez żetonu → `401`.
+Wniosek ogólny: `tar -x` na istniejący katalog **nie usuwa plików, których już nie
+ma w paczce** — osierocone pliki zostają i potrafią wrócić przez `npm run build`.
