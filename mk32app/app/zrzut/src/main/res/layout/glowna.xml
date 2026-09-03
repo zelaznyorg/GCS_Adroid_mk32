@@ -22,6 +22,24 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
+        <!--
+          Stan przewija sie, klawisze NIE. Gdy wyskoczy karta podpowiedzi, tresc
+          rosnie ponad wysokosc ekranu 7'' - a klawisz glowny musi zostac tam, gdzie
+          palec go szuka. Dlatego wszystko, na co sie PATRZY, siedzi w przewijaniu,
+          a wszystko, w co sie TRAFIA, jest przypiete pod spodem.
+        -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/przewijanieStanu"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -117,6 +135,44 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!--
+          Podpowiedź pojawia się TYLKO wtedy, gdy zrzut zawodzi: obraz wychodzi pusty
+          (możliwa blokada DJI) albo łącze zrywa się raz za razem. Wtedy operator ma
+          drugą drogę na wyciągnięcie palca, zamiast szukać jej po dokumentacji.
+          Poza tymi przypadkami karta jest ukryta — nie zabiera miejsca stanowi.
+        -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/kartaPodpowiedzi"
+            style="@style/Karta.Dron15"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/napisPodpowiedzi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/klawiszDrugaDroga"
+                    style="@style/Klawisz.Drugi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="PRZEŁĄCZ NA PILOTA 2" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/klawiszGlowny"
             style="@style/Klawisz.Glowny"
@@ -156,6 +212,7 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/wskazowkaWLocie"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -233,6 +290,84 @@
                         android:layout_marginTop="10dp"
                         app:icon="@android:drawable/ic_menu_send"
                         android:text="SPRAWDŹ ŁĄCZE" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!--
+              ============ DRUGA DROGA ============
+              Adres składa się SAM z dwóch pól powyżej. Operator nie wpisuje niczego
+              więcej i nie musi pamiętać żadnego ciągu — kopiuje i wkleja w Pilocie.
+            -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Karta.Dron15"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="DRUGA DROGA — PRZEZ DJI PILOT 2"
+                        android:letterSpacing="0.12"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceLabelMedium" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Czysty obraz z kamery, bez nakładki OSD. Działa też wtedy, gdy DJI blokuje zrzut ekranu."
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                    <TextView
+                        android:id="@+id/napisAdresRtmp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:padding="8dp"
+                        android:background="?attr/colorSurfaceVariant"
+                        android:fontFamily="monospace"
+                        android:textIsSelectable="true"
+                        android:textSize="11sp"
+                        android:textColor="?attr/colorPrimary" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/klawiszKopiuj"
+                            style="@style/Klawisz.Drugi"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="KOPIUJ ADRES" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/klawiszPilot"
+                            style="@style/Klawisz.Drugi"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="OTWÓRZ PILOTA" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="W Pilocie 2: Transmisja na żywo → RTMP → wklej adres."
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

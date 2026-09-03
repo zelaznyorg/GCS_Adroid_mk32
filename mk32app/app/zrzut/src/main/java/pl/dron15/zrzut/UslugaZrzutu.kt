@@ -149,6 +149,7 @@ class UslugaZrzutu : Service() {
         if (!nadawaj) return
         nadawaj = false
         Stan.nadaje = false
+        Stan.plynie = false
         Stan.kbs = 0
         zglos("Wstrzymane ($powod) — wznowienie bez pytania o zgodę")
         // Wątek sam posprząta obraz wirtualny, koder i gniazdo.
@@ -241,6 +242,9 @@ class UslugaZrzutu : Service() {
             return false
         }
 
+        // Dopiero TERAZ obraz naprawdę idzie: gniazdo stoi, koder pracuje, obraz
+        // wirtualny istnieje. Wcześniej `nadaje` znaczyło samą wolę operatora.
+        Stan.plynie = true
         zglos("Nadaje ${szer}×$wys @ ${ustawienia.fps} kl./s")
         powiadom()
 
@@ -248,6 +252,7 @@ class UslugaZrzutu : Service() {
         var odliczanie = System.currentTimeMillis()
         var wOknie = 0L
         var poczatek = System.currentTimeMillis()
+        var sekundCiszy = 0
 
         while (nadawaj) {
             val nr = try {
@@ -279,6 +284,24 @@ class UslugaZrzutu : Service() {
                 Stan.sekund = (teraz - poczatek) / 1000
                 wOknie = 0
                 odliczanie = teraz
+
+                // ⛔ Czarny ekran koduje się do niczego: kilkanaście kb/s zamiast
+                // setek. Ta sama miara, co po stronie stacji (`PROG_PUSTEGO_KBS`),
+                // tylko liczona u źródła — dzięki temu operator dowiaduje się o tym
+                // na aparaturze, a nie z dziennika serwera, którego w polu nie widzi.
+                // Pierwsze sekundy pomijamy: koder rozbiega się wolniej niż zegar.
+                if (Stan.sekund >= 3) {
+                    if (Stan.kbs < PROG_CZERNI_KBS) sekundCiszy += 1 else sekundCiszy = 0
+                    val czern = sekundCiszy >= SEKUND_DO_PODEJRZENIA
+                    if (czern != Stan.czern) {
+                        Stan.czern = czern
+                        zglos(
+                            if (czern)
+                                "Obraz prawie pusty (${Stan.kbs} kb/s) — możliwa blokada zrzutu przez DJI"
+                            else "Obraz wrócił (${Stan.kbs} kb/s)"
+                        )
+                    }
+                }
                 powiadom()
             }
             if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
@@ -295,6 +318,8 @@ class UslugaZrzutu : Service() {
         nadajnik?.zamknij()
         ekranWirtualny = null; koder = null; powierzchnia = null; nadajnik = null
         Stan.kbs = 0
+        Stan.plynie = false
+        Stan.czern = false
     }
 
     /**
@@ -348,11 +373,20 @@ class UslugaZrzutu : Service() {
             )
             return Notification.Action.Builder(null, nazwa, cz).build()
         }
-        val tytul = if (Stan.nadaje) "NADAJE — obraz idzie na stację" else "WSTRZYMANE — obraz nie idzie"
-        val tresc = if (Stan.nadaje) {
-            "${Stan.kbs} kb/s · ${Stan.sekund} s" + if (Stan.ponowien > 0) " · ponowień: ${Stan.ponowien}" else ""
-        } else {
-            "Wznowienie nie wymaga zgody — jedno dotknięcie"
+        // ⛔ Powiadomienie nie ma prawa ogłaszać nadawania, gdy łącze leży — to jest
+        // jedyna rzecz, jaką pilot widzi w locie, i musi mówić prawdę.
+        val tytul = when {
+            Stan.nadaje && Stan.plynie -> "NADAJE — obraz idzie na stację"
+            Stan.nadaje -> "ŁĄCZY SIĘ — obraz NIE idzie"
+            else -> "WSTRZYMANE — obraz nie idzie"
+        }
+        val tresc = when {
+            Stan.nadaje && Stan.plynie ->
+                "${Stan.kbs} kb/s · ${Stan.sekund} s" +
+                    (if (Stan.ponowien > 0) " · ponowień: ${Stan.ponowien}" else "") +
+                    (if (Stan.czern) " · OBRAZ PUSTY" else "")
+            Stan.nadaje -> "Stacja nie odpowiada — ponawiam (${Stan.ponowien})"
+            else -> "Wznowienie nie wymaga zgody — jedno dotknięcie"
         }
         val otworz = PendingIntent.getActivity(
             this, 0, Intent(this, GlownaAktywnosc::class.java),
@@ -395,6 +429,16 @@ class UslugaZrzutu : Service() {
         const val TAG = "zrzut.usluga"
         const val KANAL = "zrzut"
         const val ID_POWIADOMIENIA = 7
+
+        /**
+         * Poniżej tylu kb/s uznajemy obraz za pusty. Wartość wzięta ze stacji
+         * (`server/zrzut.mjs`, `PROG_PUSTEGO_KBS`), żeby obie strony mówiły to samo.
+         * Nawet nieruchomy ekran z zegarem daje wielokrotnie więcej.
+         */
+        const val PROG_CZERNI_KBS = 20
+
+        /** Ile sekund z rzędu, żeby nie krzyczeć po jednym mrugnięciu kodera. */
+        const val SEKUND_DO_PODEJRZENIA = 6
 
         const val AKCJA_PAUZA = "pl.dron15.zrzut.PAUZA"
         const val AKCJA_WZNOW = "pl.dron15.zrzut.WZNOW"

@@ -27,6 +27,39 @@ razem z całą nakładką OSD, czyli wysokością, prędkością i baterią wypa
 ⛔ **To nie zastępuje Cloud API dla Mavic 3T.** Tam telemetria idzie liczbami i trafia
 na mapę stacji; tutaj jest tylko pikselami. Dla Mavic 3 Pro jest to jednak jedyna droga.
 
+### Aplikacja obsługuje OBIE drogi obrazu
+
+Operator wpisuje **dwa pola — adres stacji i hasło urządzenia — i to wszystko**.
+Z tych samych dwóch wartości aplikacja składa też gotowy adres RTMP dla DJI Pilot 2:
+
+| Droga | Ścieżka na stacji | Co daje |
+|---|---|---|
+| zrzut ekranu (START) | `dji` | obraz **z nakładką OSD** |
+| natywny RTMP z Pilota 2 | `dji2` | **czysty obraz** z kamery |
+
+Ścieżki są różne celowo — stacja dopuszcza obie (`SCIEZKI_NADAWANIA`), więc oba obrazy
+mogą iść **równocześnie** i pokazać się jako dwa osobne źródła.
+
+⚠ **Równocześnie znaczy podwójne pasmo w górę z jednej aparatury**, która jednocześnie
+prowadzi lot. Na słabym łączu zepsują się oba naraz, a nie jeden ustąpi drugiemu.
+
+⛔ **Adres RTMP zawiera hasło urządzenia** i po naciśnięciu KOPIUJ zostaje w schowku
+aparatury, dopóki nie skopiuje się czegoś innego.
+
+### Gdy zrzut zawodzi, aplikacja sama proponuje drugą drogę
+
+Karta podpowiedzi wychodzi w dwóch przypadkach i mówi, **co** poszło źle:
+
+| Objaw | Rozpoznanie |
+|---|---|
+| obraz wychodzi pusty | przepływność poniżej **20 kb/s przez 6 s** — ten sam próg, co na stacji. To **podejrzenie, nie dowód**: nieruchomy ciemny ekran daje podobny wynik |
+| łącze zrywa się | **3 ponowienia** lub więcej |
+
+Klawisz **PRZEŁĄCZ NA PILOTA 2** kopiuje adres i otwiera aplikację DJI jednym
+naciśnięciem. ⚠ Nazwy pakietów DJI są zgadywane z listy (`DrogaPilota.PAKIETY`);
+gdy żadnej nie ma, aplikacja mówi wprost „otwórz ręcznie, adres masz w schowku"
+zamiast udawać, że coś zrobiła.
+
 ---
 
 ## 2. Jak to działa
@@ -69,6 +102,23 @@ Dlatego zgodę bierze się **raz, przed lotem**, a START i STOP przełączają t
 | koniec | zwolniona | zwolnione | zamknięte |
 
 Wznowienie tworzy nowy obraz wirtualny z **tej samej** zgody — bez pytania.
+
+### ⛔ „Włączone" to nie to samo, co „obraz dociera"
+
+Gdy sieć padnie, usługa **dalej chce nadawać** i ponawia próbę co 1→15 s. Stan
+rozróżnia więc dwie rzeczy: `nadaje` (operator włączył) i `plynie` (klatki naprawdę
+idą). Bez tego rozróżnienia karta świeciłaby zielenią przy zerwanym łączu, a zielone
+znaczy w tej aplikacji **wyłącznie** „obraz idzie".
+
+| Co widać | Kiedy |
+|---|---|
+| **NADAJE** (zielone) | łącze stoi, klatki idą |
+| **ŁĄCZY SIĘ** (pomarańczowe) | operator włączył, ale stacja nie odpowiada |
+| **WSTRZYMANE** | pauza, zgoda trzymana |
+
+Z tego samego powodu aplikacja **chowa się po starcie dopiero wtedy, gdy obraz
+naprawdę poszedł** — inaczej pilot odchodziłby od aparatury przekonany, że stacja
+ma obraz.
 
 ---
 
@@ -121,6 +171,8 @@ to stan i działanie, prawa — ustawienia dotykane raz przed lotem.
 | klawisz główny zmienia rolę: zielone wypełnienie zaprasza, pomarańczowa obwódka jest wyjściem | kolor nigdy nie kłamie o tym, co się stanie |
 | jeden wybór jakości (`LEKKA` / `ZWYKŁA` / `OSTRA`) zamiast trzech liczb | klatki, skala i pasmo nie są niezależne — więcej klatek bez pasma daje kaszę |
 | ustawienia gasną i blokują się w trakcie nadawania | zmiana w locie znaczyłaby zerwanie łącza w najgorszym momencie |
+| **klawisze są przypięte, stan się przewija** | gdy wyskoczy karta podpowiedzi, treść rośnie ponad wysokość ekranu — a klawisz główny musi zostać tam, gdzie palec go szuka |
+| komunikat po naciśnięciu trzyma się 4 s | odświeżanie stanu co pół sekundy wpisywało z powrotem „ponawiam za N s" i odpowiedź na własne naciśnięcie znikała, zanim dało się ją przeczytać |
 | `SPRAWDŹ ŁĄCZE` | sprawdzenie na ziemi jest tanie; odkrycie w powietrzu, że adres zły, kosztuje lot |
 
 Paleta jest **ta sama, co na stacji** — operator ogląda oba ekrany tego samego dnia.
@@ -143,6 +195,7 @@ Paleta jest **ta sama, co na stacji** — operator ogląda oba ekrany tego sameg
 | Plik | Co robi |
 |---|---|
 | `GlownaAktywnosc.kt` | ekran przed lotem: ustawienia, próba łącza, zgoda, start |
+| `DrogaPilota.kt` | druga droga: adres RTMP, schowek, otwarcie aplikacji DJI |
 | `UslugaZrzutu.kt` | przechwytywanie, kodowanie, wysyłka; pauza/wznowienie; powiadomienie |
 | `NadajnikTcp.kt` | gniazdo do stacji, nagłówek, wysyłka klatek |
 | `KafelekZrzutu.kt` | kafelek szybkich ustawień |
@@ -176,6 +229,12 @@ nacisnąć START i potwierdzić zgodę systemu. Na stacji wybrać źródło
 | klatki wyjęte ze strumienia pokazują żywy ekran | **FAKT** |
 | pauza i wznowienie **bez pytania o zgodę** | **FAKT** — log: `Wstrzymane (operator)` → `Nadaje` po 5 s |
 | chowanie po starcie, obraz leci dalej | **FAKT** — 12 s w tle bez dotknięcia, dane płyną |
+| adres RTMP składa się z dwóch pól | **FAKT** — `rtmp://10.0.2.2:1935/dji2?user=dji&pass=…` |
+| kopiowanie adresu do schowka | **FAKT** — potwierdzenie na ekranie |
+| podpowiedź po 3 ponowieniach + klawisz | **FAKT** — emulator bez stacji na drugim końcu |
+| **ŁĄCZY SIĘ** zamiast zielonego **NADAJE** przy martwym łączu | **FAKT** |
+| wykrycie czerni po przepływności | ⛔ **NIESPRAWDZONE** — brak ekranu, który DJI naprawdę zasłania |
+| otwarcie aplikacji DJI z klawisza | ⛔ **NIESPRAWDZONE** — na emulatorze jej nie ma; ścieżka „nie znalazłem" **sprawdzona** |
 | cały łańcuch do MediaMTX | **FAKT** — `[path dji] stream is available and online, 1 track (H264)` |
 | **działanie na prawdziwym kontrolerze DJI** | ⛔ **NIESPRAWDZONE** |
 | **czy DJI nie blokuje zrzutu (`FLAG_SECURE`)** | ⛔ **NIEROZSTRZYGNIĘTE** — wtedy obraz będzie czarny i nie da się tego obejść z aplikacji |

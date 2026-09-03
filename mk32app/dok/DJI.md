@@ -480,3 +480,81 @@ systemowy, ale zostawiała po nim **szary pas** — pełny ekran musi iść z mo
 3. START → Android zapyta o zgodę na przechwytywanie ekranu (**pyta za każdym razem,
    tego nie da się zapamiętać** — tak działa Android i jest to celowe).
 4. Na stacji wybrać źródło **DJI — nadawany**.
+
+---
+
+## 8. ✅ Jedna aplikacja obsługuje OBIE drogi obrazu (2026-09-03)
+
+Do tej pory zrzut ekranu i natywny RTMP z Pilota 2 były dwoma osobnymi pomysłami:
+pierwszy miał aplikację, drugi — akapit w dokumentacji i długi adres do przepisania
+z palca. **Teraz operator wpisuje dwa pola i ma obie drogi.**
+
+### Adres RTMP składa się sam
+
+Z tych samych dwóch wartości, które i tak trzeba podać zrzutowi:
+
+```
+adres stacji: 192.168.88.30:5601        hasło: <z panelu ADMIN>
+                    ↓
+rtmp://192.168.88.30:1935/dji2?user=dji&pass=<hasło>
+```
+
+Klawisze **KOPIUJ ADRES** i **OTWÓRZ PILOTA** stoją obok wypisanego adresu. Nie ma
+czego zapamiętywać ani przepisywać — a literówka w tym ciągu daje nadawanie, które
+milczy bez powodu.
+
+| Droga | Ścieżka MediaMTX | Co daje |
+|---|---|---|
+| zrzut ekranu | `dji` | obraz **z nakładką OSD** — dla Mavic 3 Pro jedyna telemetria, jaka istnieje |
+| natywny RTMP | `dji2` | **czysty obraz** z kamery, prosto ze strumienia drona |
+
+Ścieżki są **różne celowo**: stacja dopuszcza obie (`SCIEZKI_NADAWANIA`), więc oba
+obrazy mogą iść równocześnie i pokazać się jako dwa źródła. ⚠ Równocześnie znaczy
+**podwójne pasmo w górę z jednej aparatury**, która przy tym prowadzi lot — na słabym
+łączu zepsują się oba naraz. Zalecenie: ustawić obie, ale w locie trzymać włączoną jedną.
+
+⛔ **Adres niesie hasło urządzenia** i po skopiowaniu zostaje w schowku aparatury.
+
+### Aplikacja sama proponuje drugą drogę, gdy pierwsza zawodzi
+
+| Objaw | Rozpoznanie | Co widzi operator |
+|---|---|---|
+| obraz pusty | poniżej **20 kb/s przez 6 s** — ten sam próg, co w `server/zrzut.mjs` | karta z czerwoną obwódką i klawiszem **PRZEŁĄCZ NA PILOTA 2** |
+| łącze zrywa się | **3 ponowienia** lub więcej | karta z pomarańczową obwódką i tym samym klawiszem |
+
+Miara czerni jest liczona **u źródła**, nie tylko na stacji — w polu nikt nie zagląda
+do dziennika serwera. ⚠ To **podejrzenie, nie dowód**: nieruchomy ciemny ekran daje
+podobny wynik. Dlatego skutkiem jest podpowiedź, a nie przełączenie czegokolwiek
+za operatora.
+
+### ⛔ Przy okazji wyszły dwa błędy, których nie widać było w kodzie
+
+**1. Karta stanu kłamała barwą.** Przy zerwanym łączu aplikacja świeciła zielonym
+`NADAJE` i pokazywała `0 kb/s` — bo `nadaje` znaczyło „operator włączył", a nie
+„obraz dociera". Pilot mógł odejść od aparatury przekonany, że stacja ma obraz.
+Stan rozróżnia teraz `nadaje` i `plynie`; przy martwym łączu karta jest pomarańczowa
+i mówi **ŁĄCZY SIĘ**, powiadomienie — **„obraz NIE idzie"**, a kafelek — „łączy się…".
+Z tego samego powodu **chowanie po starcie czeka na pierwsze klatki**, nie na samo
+naciśnięcie.
+
+**2. Klawisz główny wypadał poza ekran**, gdy pojawiała się karta podpowiedzi —
+czyli dokładnie wtedy, kiedy był najbardziej potrzebny. Lewa kolumna ma teraz
+**przewijany stan i przypięte klawisze**.
+
+Obie rzeczy wyszły dopiero ze zrzutów ekranu z emulatora; w kodzie wyglądały poprawnie.
+
+### Sprawdzone w emulatorze (2026-09-03)
+
+| Rzecz | Stan |
+|---|---|
+| adres RTMP składany z dwóch pól | **FAKT** — `rtmp://10.0.2.2:1935/dji2?user=dji&pass=…` |
+| kopiowanie do schowka | **FAKT** |
+| podpowiedź po 3 ponowieniach + klawisz | **FAKT** |
+| **ŁĄCZY SIĘ** zamiast zielonego **NADAJE** przy martwym łączu | **FAKT** |
+| komunikat po naciśnięciu przestał ginąć | **FAKT** — „Nie znalazłem aplikacji DJI…" przeżyło cykle odświeżania |
+| otwarcie aplikacji DJI | ⛔ **NIESPRAWDZONE** — na emulatorze jej nie ma; sprawdzona wyłącznie ścieżka „nie znalazłem" |
+| wykrycie czerni | ⛔ **NIESPRAWDZONE** — brak ekranu, który DJI naprawdę zasłania |
+
+Nazwy pakietów DJI (`dji.v5.pilot`, `dji.pilot`, `dji.go.v5`, `dji.go.v4`) są
+**zgadywane** — do potwierdzenia na aparaturze. ⚠ Wymagają wpisu `<queries>`
+w manifeście, bo Android 11+ ukrywa cudze pakiety.

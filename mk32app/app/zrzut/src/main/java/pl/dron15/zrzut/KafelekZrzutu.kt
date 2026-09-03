@@ -72,6 +72,10 @@ class KafelekZrzutu : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             kafelek.subtitle = when {
                 !Stan.gotowy -> "nieuruchomione"
+                // Kafelek zostaje zapalony (operator WŁĄCZYŁ nadawanie), ale podpis
+                // nie udaje, że obraz dociera, kiedy łącze leży.
+                Stan.nadaje && !Stan.plynie -> "łączy się…"
+                Stan.nadaje && Stan.czern -> "obraz pusty!"
                 Stan.nadaje -> "${Stan.kbs} kb/s"
                 else -> "wstrzymane"
             }

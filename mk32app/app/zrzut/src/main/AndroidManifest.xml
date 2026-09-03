@@ -18,6 +18,19 @@
          PILOTEM: to z niego wstrzymuje się obraz w locie. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      ⚠ Android 11+ ukrywa cudze pakiety: bez tej listy `getLaunchIntentForPackage`
+      zwraca `null` nawet dla ZAINSTALOWANEJ aplikacji DJI, więc klawisz „OTWÓRZ
+      PILOTA" nie miałby czego otworzyć. Wymieniamy tylko to, co naprawdę otwieramy
+      — nie prosimy o widok na całą listę programów.
+    -->
+    <queries>
+        <package android:name="dji.v5.pilot" />
+        <package android:name="dji.pilot" />
+        <package android:name="dji.go.v5" />
+        <package android:name="dji.go.v4" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:label="DRON 15 — zrzut ekranu"

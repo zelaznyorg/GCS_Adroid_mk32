@@ -65,6 +65,9 @@ class GlownaAktywnosc : AppCompatActivity() {
     private lateinit var wyborJakosci: MaterialButtonToggleGroup
     private lateinit var podsumowanieJakosci: TextView
     private lateinit var przelacznikChowania: MaterialSwitch
+    private lateinit var napisAdresRtmp: TextView
+    private lateinit var kartaPodpowiedzi: MaterialCardView
+    private lateinit var napisPodpowiedzi: TextView
 
     private var fps = 15
     private var kbs = 3000
@@ -95,9 +98,15 @@ class GlownaAktywnosc : AppCompatActivity() {
      * już przy maszynie.
      */
     private var czekamNaStart = false
+
+    /** Do kiedy trzymać ostatni komunikat, zanim wróci opis stanu. */
+    private var komunikatDo = 0L
     private val odbiorca = object : BroadcastReceiver() {
         override fun onReceive(k: Context?, i: Intent?) {
-            i?.getStringExtra(UslugaZrzutu.DODATEK_STAN)?.let { szczegol.text = it }
+            // Meldunek usługi nie depcze świeżej odpowiedzi na naciśnięcie operatora.
+            i?.getStringExtra(UslugaZrzutu.DODATEK_STAN)?.let {
+                if (System.currentTimeMillis() > komunikatDo) szczegol.text = it
+            }
             odmaluj()
         }
     }
@@ -139,9 +148,21 @@ class GlownaAktywnosc : AppCompatActivity() {
         klawiszGlowny.setOnClickListener { nacisnietoGlowny() }
         klawiszKoniec.setOnClickListener {
             startService(Intent(this, UslugaZrzutu::class.java).setAction(UslugaZrzutu.AKCJA_KONIEC))
-            szczegol.text = "Zakończone — kolejny start znów poprosi o zgodę."
+            powiedz("Zakończone — kolejny start znów poprosi o zgodę.")
         }
         findViewById<MaterialButton>(R.id.klawiszProba).setOnClickListener { sprawdzLacze() }
+
+        napisAdresRtmp = findViewById(R.id.napisAdresRtmp)
+        kartaPodpowiedzi = findViewById(R.id.kartaPodpowiedzi)
+        napisPodpowiedzi = findViewById(R.id.napisPodpowiedzi)
+        findViewById<MaterialButton>(R.id.klawiszKopiuj).setOnClickListener { skopiujAdres() }
+        findViewById<MaterialButton>(R.id.klawiszPilot).setOnClickListener { otworzPilota() }
+        findViewById<MaterialButton>(R.id.klawiszDrugaDroga).setOnClickListener {
+            // Jedno naciśnięcie robi komplet: kopiuje adres i otwiera Pilota.
+            // Gdy zrzut właśnie zawiódł, operator nie ma czasu na trzy kroki.
+            skopiujAdres()
+            otworzPilota()
+        }
 
         wyborJakosci.check(idJakosci())
         wyborJakosci.addOnButtonCheckedListener { _, id, zaznaczony ->
@@ -149,7 +170,7 @@ class GlownaAktywnosc : AppCompatActivity() {
             // ⛔ W trakcie nadawania ustawień nie ruszamy: zmiana w locie znaczyłaby
             // zerwanie i odtworzenie łącza w najgorszym możliwym momencie.
             if (Stan.nadaje) {
-                szczegol.text = "Najpierw wstrzymaj obraz — w trakcie nadawania ustawienia są zamknięte."
+                powiedz("Najpierw wstrzymaj obraz — w trakcie nadawania ustawienia są zamknięte.")
                 wyborJakosci.check(idJakosci())
                 return@addOnButtonCheckedListener
             }
@@ -189,7 +210,7 @@ class GlownaAktywnosc : AppCompatActivity() {
      * szybkich ustawień i w powiadomieniu.
      */
     private fun ukryj(powod: String) {
-        szczegol.text = "Ukryte ($powod) — obraz leci dalej."
+        powiedz("Ukryte ($powod) — obraz leci dalej.")
         moveTaskToBack(true)
     }
 
@@ -207,18 +228,23 @@ class GlownaAktywnosc : AppCompatActivity() {
     // ---- wygląd zależny od stanu ------------------------------------------------
 
     private fun odmaluj() {
+        // ⛔ Zielone jest WYŁĄCZNIE „obraz idzie". Gdy operator włączył nadawanie,
+        // ale łącze leży, karta jest pomarańczowa i mówi „ŁĄCZY SIĘ" — inaczej
+        // pilot odchodziłby od aparatury przekonany, że stacja ma obraz.
+        val idzie = Stan.nadaje && Stan.plynie
         val akcent = when {
-            Stan.nadaje -> getColor(R.color.zielony)
+            idzie -> getColor(R.color.zielony)
             Stan.gotowy -> getColor(R.color.pomarancz)
             else -> getColor(R.color.tekst_slaby)
         }
         val tlo = when {
-            Stan.nadaje -> getColor(R.color.zielony_ciemny)
+            idzie -> getColor(R.color.zielony_ciemny)
             Stan.gotowy -> getColor(R.color.pomarancz_ciemny)
             else -> getColor(R.color.karta)
         }
         napisStanu.text = when {
-            Stan.nadaje -> "NADAJE"
+            idzie -> "NADAJE"
+            Stan.nadaje -> "ŁĄCZY SIĘ"
             Stan.gotowy -> "WSTRZYMANE"
             else -> "NIE NADAJE"
         }
@@ -229,7 +255,7 @@ class GlownaAktywnosc : AppCompatActivity() {
             if (Stan.gotowy) R.dimen.obwodka_gruba else R.dimen.obwodka_cienka
         )
 
-        wartoscPrzeplyw.text = if (Stan.nadaje) "${Stan.kbs} kb/s" else "—"
+        wartoscPrzeplyw.text = if (idzie) "${Stan.kbs} kb/s" else "—"
         wartoscCzas.text = if (Stan.nadaje || Stan.sekund > 0) "${Stan.sekund} s" else "—"
 
         klawiszGlowny.text = when {
@@ -260,18 +286,108 @@ class GlownaAktywnosc : AppCompatActivity() {
         }
         for (i in 0 until wyborJakosci.childCount) wyborJakosci.getChildAt(i).isEnabled = wolno
 
-        if (Stan.ponowien > 0 && Stan.nadaje) {
+        if (Stan.ponowien > 0 && Stan.nadaje && System.currentTimeMillis() > komunikatDo) {
             szczegol.text = "${Stan.opis}  ·  ponowień łącza: ${Stan.ponowien}"
         }
 
+        odmalujDrugaDroge()
+
         // Chowamy się dopiero, gdy obraz NAPRAWDĘ poszedł — inaczej pilot zostałby
         // z pustym ekranem i bez wiedzy, czy start się udał.
-        if (czekamNaStart && Stan.nadaje) {
+        // ⛔ Warunkiem jest `plynie`, nie `nadaje`: samo naciśnięcie START nie znaczy,
+        // że stacja cokolwiek dostała. Gdyby aplikacja chowała się już wtedy, pilot
+        // zostałby z przekonaniem, że obraz leci, podczas gdy usługa dopiero ponawia
+        // próby połączenia.
+        if (czekamNaStart && Stan.nadaje && Stan.plynie) {
             czekamNaStart = false
             if (przelacznikChowania.isChecked) {
-                zegar.postDelayed({ if (Stan.nadaje) ukryj("po starcie") }, 1200)
+                zegar.postDelayed({ if (Stan.plynie) ukryj("po starcie") }, 1200)
             }
         }
+    }
+
+    /**
+     * Zdanie dla operatora w karcie stanu.
+     *
+     * ⛔ Bez tego meldunek ginął: przy zrywającym się łączu odmalowanie co pół
+     * sekundy wpisywało z powrotem „ponawiam za N s", więc odpowiedź na WŁASNE
+     * naciśnięcie znikała, zanim dało się ją przeczytać. Świeży komunikat wygrywa
+     * przez [waznyPrzez] milisekund.
+     */
+    private fun powiedz(tekst: String, waznyPrzez: Long = 4000) {
+        szczegol.text = tekst
+        komunikatDo = System.currentTimeMillis() + waznyPrzez
+    }
+
+    // ---- druga droga: natywny RTMP z DJI Pilot 2 ---------------------------------
+
+    /**
+     * Adres nadawania dla Pilota 2 — złożony z **tych samych dwóch pól**, które
+     * operator wypełnił dla zrzutu.
+     *
+     * Przeliczany przy każdym odmalowaniu (dwa razy na sekundę), więc nadąża za
+     * pisaniem w polach bez podpinania nasłuchu do każdego znaku. Koszt: złożenie
+     * jednego napisu.
+     */
+    private fun adresRtmp(): String =
+        DrogaPilota.adres(DrogaPilota.host(poleAdres.text.toString()), poleHaslo.text.toString().trim())
+
+    private fun odmalujDrugaDroge() {
+        napisAdresRtmp.text = adresRtmp()
+
+        // Podpowiedź wychodzi tylko wtedy, gdy zrzut naprawdę zawodzi. Dwa powody,
+        // dwa różne zdania — operator ma wiedzieć, CO poszło źle, a nie tylko że coś.
+        val powod = when {
+            Stan.czern -> "Obraz wychodzi pusty (${Stan.kbs} kb/s). DJI mogło zablokować zrzut ekranu " +
+                "— tego nie da się obejść z aplikacji. Czysty obraz weźmiesz drugą drogą."
+            Stan.ponowien >= 3 -> "Łącze zrywa się (ponowień: ${Stan.ponowien}). " +
+                "Natywna transmisja z Pilota 2 bywa odporniejsza — adres masz gotowy."
+            else -> null
+        }
+        // Podpowiedź wjeżdża pod kartę stanu, więc bez tego wystawałaby samą krawędzią
+        // — a rzecz, której nie widać, nie jest podpowiedzią. Przewijamy RAZ, w chwili
+        // pojawienia się: powtarzanie co pół sekundy blokowałoby operatorowi ruch.
+        val bylaWidoczna = kartaPodpowiedzi.visibility == View.VISIBLE
+        kartaPodpowiedzi.visibility = if (powod == null) View.GONE else View.VISIBLE
+        if (powod != null && !bylaWidoczna) {
+            findViewById<View>(R.id.przewijanieStanu).post {
+                (findViewById<View>(R.id.przewijanieStanu) as androidx.core.widget.NestedScrollView)
+                    .fullScroll(View.FOCUS_DOWN)
+            }
+        }
+        // Lewa kolumna nie przewija się (klawisz główny ma stać zawsze w tym samym
+        // miejscu), więc miejsce na podpowiedź trzeba skądś wziąć. Bierzemy je ze
+        // wskazówki na dole: ona jest poradą, a podpowiedź — stanem.
+        findViewById<View>(R.id.wskazowkaWLocie).visibility =
+            if (powod == null) View.VISIBLE else View.GONE
+        if (powod != null) {
+            napisPodpowiedzi.text = powod
+            val barwa = getColor(if (Stan.czern) R.color.czerwony else R.color.pomarancz)
+            kartaPodpowiedzi.strokeColor = barwa
+            kartaPodpowiedzi.strokeWidth = resources.getDimensionPixelSize(R.dimen.obwodka_gruba)
+        }
+    }
+
+    private fun skopiujAdres() {
+        if (poleHaslo.text.isNullOrBlank()) {
+            powiedz("Najpierw wpisz hasło urządzenia — bez niego adres jest bezużyteczny.")
+            return
+        }
+        powiedz(
+            if (DrogaPilota.skopiuj(this, adresRtmp()))
+                "Adres w schowku. W Pilocie 2: Transmisja na żywo → RTMP → wklej."
+            else "Nie udało się skopiować — adres jest wypisany obok, da się go zaznaczyć."
+        )
+    }
+
+    private fun otworzPilota() {
+        val pakiet = DrogaPilota.otworzPilota(this)
+        powiedz(
+            if (pakiet != null) "Otwieram $pakiet…"
+            else "Nie znalazłem aplikacji DJI — otwórz ją ręcznie, adres masz w schowku.",
+            // Dłużej niż zwykle: to jedyna informacja, że klawisz nie miał co otworzyć.
+            waznyPrzez = 7000,
+        )
     }
 
     // ---- działania --------------------------------------------------------------
@@ -284,7 +400,7 @@ class GlownaAktywnosc : AppCompatActivity() {
         }
         zapisz()
         if (poleHaslo.text.isNullOrBlank()) {
-            szczegol.text = "Wpisz hasło urządzenia — stacja bez niego nie przyjmie obrazu."
+            powiedz("Wpisz hasło urządzenia — stacja bez niego nie przyjmie obrazu.")
             return
         }
         val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -300,7 +416,7 @@ class GlownaAktywnosc : AppCompatActivity() {
     private fun sprawdzLacze() {
         zapisz()
         val (host, port) = adresIPort()
-        szczegol.text = "Sprawdzam $host:$port…"
+        powiedz("Sprawdzam $host:$port…")
         thread {
             val wynik = try {
                 Socket().use {
@@ -310,7 +426,7 @@ class GlownaAktywnosc : AppCompatActivity() {
             } catch (e: Exception) {
                 "Stacja nie odpowiada: ${e.message}"
             }
-            runOnUiThread { szczegol.text = wynik }
+            runOnUiThread { powiedz(wynik) }
         }
     }
 
@@ -347,7 +463,7 @@ class GlownaAktywnosc : AppCompatActivity() {
         super.onActivityResult(prosba, wynik, dane)
         if (prosba != PROSBA_O_EKRAN) return
         if (wynik != RESULT_OK || dane == null) {
-            szczegol.text = "Bez zgody na przechwytywanie ekranu nie ma czego wysyłać."
+            powiedz("Bez zgody na przechwytywanie ekranu nie ma czego wysyłać.")
             return
         }
         val (host, port) = adresIPort()
@@ -362,7 +478,7 @@ class GlownaAktywnosc : AppCompatActivity() {
             .putExtra(UslugaZrzutu.DODATEK_PODZIALKA, podzialka)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i) else startService(i)
         czekamNaStart = true
-        szczegol.text = "Uruchamiam…"
+        powiedz("Uruchamiam…")
     }
 
     override fun onResume() {
