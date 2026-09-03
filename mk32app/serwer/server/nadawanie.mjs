@@ -94,12 +94,22 @@ export function nowHaslo() {
 function wczytajHasla() {
   if (hasla) return hasla;
   hasla = new Map();
+  let bylPlik = false;
   try {
     if (existsSync(PLIK_HASEL)) {
+      bylPlik = true;
       const d = JSON.parse(readFileSync(PLIK_HASEL, "utf8"));
       for (const [id, h] of Object.entries(d || {})) if (typeof h === "string" && h) hasla.set(id, h);
     }
   } catch { /* uszkodzony plik nie może zabrać nadawania — zaczynamy od pustej listy */ }
+  // Przenosiny ze wspólnego hasła (przed 2026-09-03): WSZYSTKIE źródła nadawane, które
+  // istnieją w chwili pierwszego uruchomienia, dostają stary klucz — bo adresy z tym
+  // kluczem mogą już siedzieć w aparaturach. Robimy to raz: gdy pliku haseł jeszcze nie ma.
+  if (!bylPlik && existsSync(PLIK_KLUCZA)) {
+    const stary = haslo();
+    for (const z of zrodlaNadawane()) hasla.set(z.id, stary);
+    if (hasla.size) zapiszHasla();
+  }
   return hasla;
 }
 
@@ -120,15 +130,15 @@ function zrodlaNadawane() {
 /**
  * Hasło źródła nadawanego; zakładane przy pierwszym pytaniu.
  *
- * Źródło, które istniało przed wprowadzeniem haseł na źródło, dostaje stary klucz
- * stacji — żeby adres wpisany już w aparaturę dalej działał. Nowe źródła dostają
- * własny, losowy sekret.
+ * Źródła istniejące przed wprowadzeniem haseł na źródło dostały stary klucz stacji
+ * przy pierwszym wczytaniu (wczytajHasla) — żeby adresy wpisane już w aparaturę dalej
+ * działały. Nowe źródła dostają własny, losowy sekret.
  */
 export function hasloZrodla(id) {
   const h = wczytajHasla();
   if (h.has(id)) return h.get(id);
-  const istniejeStaryKlucz = existsSync(PLIK_KLUCZA);
-  const nowe = istniejeStaryKlucz && h.size === 0 ? haslo() : nowySekret();
+  // Źródło dodane PO przenosinach — własny, losowy sekret.
+  const nowe = nowySekret();
   h.set(id, nowe);
   zapiszHasla();
   return nowe;
