@@ -1,4 +1,4 @@
-// Generuje mediamtx/mediamtx.yml oraz web/public/zrodla.json na podstawie zrodla.json.
+// Generuje mediamtx/mediamtx.yml na podstawie zrodla.json.
 // Uruchamiane przez start.sh / start.ps1 przed startem MediaMTX.
 import {
   readZrodla,
@@ -6,7 +6,6 @@ import {
   readArchiwum,
   validateZrodlo,
   generateMediamtxYml,
-  generateWebConfig,
   katalogArchiwum,
 } from "./zrodla-lib.mjs";
 
@@ -32,11 +31,9 @@ for (const z of zrodla) {
 
 const arch = readArchiwum();
 const yml = generateMediamtxYml(zrodla, arch);
-const web = generateWebConfig(zrodla);
 const tel = readTelemetria();
 
 console.log(`Wygenerowano ${yml} (${zrodla.length} źródeł: ${zrodla.map((z) => z.id).join(", ") || "brak"}).`);
-console.log(`Wygenerowano ${web} (lista dla strony, bez adresów RTSP).`);
 console.log(`Telemetria: ${tel.host}:${tel.port}`);
 
 if (!arch.wlaczone) {

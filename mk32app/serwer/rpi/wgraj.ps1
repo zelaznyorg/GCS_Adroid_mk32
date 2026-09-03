@@ -58,7 +58,11 @@ Krok "wysyłam"
 ssh $Cel "sudo mkdir -p '$Katalog' && sudo chown $Uzytkownik '$Katalog'"
 scp -q $Paczka "${Cel}:/tmp/dron15-serwer.tar.gz"
 if ($LASTEXITCODE -ne 0) { throw "Wysyłka nie powiodła się." }
-ssh $Cel "tar -xzf /tmp/dron15-serwer.tar.gz -C '$Katalog' && rm /tmp/dron15-serwer.tar.gz"
+# --warning=no-timestamp: malina nie ma zegara na baterii i po zimnym starcie, zanim
+# NTP zsynchronizuje, chodzi godziny do tyłu. tar ostrzega wtedy o plikach „z przyszłości”
+# na stderr — a PowerShell 5.1 pod $ErrorActionPreference=Stop każe za to całym
+# wgrywaniem, choć rozpakowanie się udało (2026-09-03: przerwane przed restartem usług).
+ssh $Cel "tar --warning=no-timestamp -xzf /tmp/dron15-serwer.tar.gz -C '$Katalog' && rm /tmp/dron15-serwer.tar.gz"
 Remove-Item $Paczka -Force
 
 # ---- binarka MediaMTX ------------------------------------------------------

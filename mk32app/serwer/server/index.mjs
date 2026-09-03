@@ -21,7 +21,6 @@ import {
   readTelemetria,
   readArchiwum,
   writeArchiwum,
-  generateWebConfig,
   generateMediamtxYml,
   pathsForZrodlo,
 } from "../scripts/zrodla-lib.mjs";
@@ -328,6 +327,18 @@ app.post("/api/mtx-auth", (req, res) => {
     return res.status(401).end();
   }
   if (action && action !== "read") return res.status(401).end();
+
+  // Odczyt po RTSP z pętli zwrotnej — to NAGRYWARKA pulpitu (gcs_pulpit) albo inny
+  // proces na tej samej maszynie. Nasłuch RTSP jest przypięty do 127.0.0.1
+  // (zrodla-lib.mjs), więc nikt z sieci tą drogą nie wejdzie; żeton widza nie ma
+  // tu sensu, bo ffmpeg nagrywarki go nie ma i mieć nie będzie. ⚠ Warunek jest na
+  // PROTOKÓŁ, nie na sam adres: przeglądarka pulpitu też pyta z 127.0.0.1, ale po
+  // WebRTC — i ona ma się nadal legitymować żetonem, bo tak odcina się widza.
+  const ipKlienta = czystyIp(ip);
+  const zPetli = ipKlienta === "127.0.0.1" || ipKlienta === "::1";
+  if (req.body?.protocol === "rtsp" && zPetli) {
+    return res.status(200).end();
+  }
 
   const kto = dostep.sprawdzZeton(`${user}.${password}`);
   if (!kto) {
@@ -805,7 +816,6 @@ app.use((e, req, res, _next) => {
 
 async function start() {
   const zrodla = readZrodla();
-  generateWebConfig(zrodla);
   generateMediamtxYml(zrodla, ustArchiwum);
 
   const pierwszeZaproszenie = dostep.zapewnijAdmina();

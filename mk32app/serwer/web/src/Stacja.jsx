@@ -112,7 +112,9 @@ export default function Stacja({ naZamknij, panel, naPanel }) {
 
   const dl = s?.dlawienie;
   const tunel = (s?.siec || []).filter((i) => i.tunel);
-  const api9997 = (s?.porty || []).find((p) => p.port === 9997);
+  // Porty „TYLKO lokalnie” (9997 — API MediaMTX, 8555 — RTSP dla nagrywarki), które
+  // odpowiadają spoza pętli zwrotnej. Każdy taki to dziura, nie ciekawostka.
+  const wystawione = (s?.porty || []).filter((p) => !p.wTunelu && p.wystawioneNaSwiat);
 
   return (
     <div className="zaslona panel admin">
@@ -160,16 +162,19 @@ export default function Stacja({ naZamknij, panel, naPanel }) {
               </section>
             )}
 
-            {api9997?.wystawioneNaSwiat && (
-              <section>
-                <div className="etykieta blad">⛔ API MEDIAMTX WYSTAWIONE NA SIEĆ</div>
+            {wystawione.map((p) => (
+              <section key={p.port}>
+                <div className="etykieta blad">⛔ PORT {p.port} WYSTAWIONY NA SIEĆ</div>
                 <p className="przypis blad">
-                  Port 9997 odpowiada spoza pętli zwrotnej. Każdy w tej sieci może przestawiać
-                  ścieżki obrazu. W generowanym <code>mediamtx.yml</code> ma być
-                  <code> apiAddress: 127.0.0.1:9997</code>.
+                  {p.rola} — odpowiada spoza pętli zwrotnej.{" "}
+                  {p.port === 9997
+                    ? "Każdy w tej sieci może przestawiać ścieżki obrazu."
+                    : "Każdy w tej sieci dostaje obraz bez żetonu widza."}{" "}
+                  W generowanym <code>mediamtx.yml</code> ten nasłuch ma być przypięty do
+                  <code> 127.0.0.1</code>.
                 </p>
               </section>
-            )}
+            ))}
 
             {/* ---- usługi ---- */}
             <section>

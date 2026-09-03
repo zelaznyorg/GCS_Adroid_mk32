@@ -18,9 +18,18 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const DATA_DIR = process.env.DATA_DIR || ROOT;
 export const ZRODLA_PATH = join(DATA_DIR, "zrodla.json");
 export const MEDIAMTX_YML_PATH = join(ROOT, "mediamtx", "mediamtx.yml");
-export const WEB_CONFIG_PATH = join(ROOT, "web", "public", "zrodla.json");
 
 export const ID_RE = /^[A-Za-z0-9_-]+$/;
+
+/**
+ * Port lokalnego wyjścia RTSP MediaMTX — dla NAGRYWARKI pulpitu i innych odbiorców
+ * NA TEJ SAMEJ maszynie. Nasłuch jest przypięty do 127.0.0.1 w generateMediamtxYml,
+ * więc ten numer nigdy nie jest widoczny z sieci.
+ *
+ * ⚠ Nie 8554: ten port na stacji trzyma `pi5-uas-rtsp` (obraz CVBS dla ATAK-CIV).
+ * Adres źródła dla nagrywarki: `rtsp://127.0.0.1:8555/<id>`.
+ */
+export const PORT_RTSP_LOKALNY = 8555;
 
 // Domyślny adres telemetrii: jednostka naziemna MK32 (INTERFEJSY.md §1 — FAKT).
 export const TELEMETRIA_DOMYSLNA = { host: "192.168.144.12", port: 19856 };
@@ -312,11 +321,21 @@ webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
 webrtcAllowOrigins: ['*']
 
-# Kamera pokładowa jest tylko ŹRÓDŁEM i nie publikuje do nas — dla niej te
-# protokoły zostają wyłączone. Wejście RTMP włącza się WYŁĄCZNIE wtedy, gdy
-# w zrodla.json jest źródło nadawane (drony DJI wypychają obraz z aparatury).
-# Mniej otwartych portów, gdy nie ma czego przyjmować.
-rtsp: no
+# RTSP wyłącznie na pętli zwrotnej — dla NAGRYWARKI pulpitu (gcs_pulpit), która
+# nagrywa źródła IP własnym ffmpegiem. Bez tego wyjścia nagrywarka ciągnęła ZR30
+# WPROST z kamery, równolegle z nami: dwa strumienie przez łącze radiowe i drugi
+# z czterech slotów kamery zajęty na to samo. Teraz kamerę pobieramy RAZ, a każdy
+# lokalny odbiorca bierze kopię stąd. Nasłuch TYLKO na 127.0.0.1 — z zewnątrz
+# obraz nadal idzie wyłącznie przez WebRTC z żetonem widza.
+# Port ${PORT_RTSP_LOKALNY}, bo 8554 zajmuje pi5-uas-rtsp (obraz CVBS dla ATAK-a).
+# Sam TCP: żadnych portów UDP do otwierania i pilnowania.
+rtsp: yes
+rtspAddress: 127.0.0.1:${PORT_RTSP_LOKALNY}
+rtspTransports: [tcp]
+rtspEncryption: "no"
+# Wejście RTMP włącza się WYŁĄCZNIE wtedy, gdy w zrodla.json jest źródło nadawane
+# (drony DJI wypychają obraz z aparatury). Mniej otwartych portów, gdy nie ma
+# czego przyjmować.
 ${wejscieRtmp}
 hls: no
 srt: no
@@ -344,16 +363,9 @@ ${pathsYml || "  # (brak źródeł)"}
   return MEDIAMTX_YML_PATH;
 }
 
-// Okrojona lista dla przeglądarki — BEZ adresów RTSP.
-export function generateWebConfig(zrodla) {
-  const webConfig = {
-    zrodla: zrodla.map((z) => ({
-      id: z.id,
-      nazwa: z.nazwa,
-      maPomocniczy: Boolean(z.rtspPomocniczy),
-    })),
-  };
-  mkdirSync(dirname(WEB_CONFIG_PATH), { recursive: true });
-  writeFileSync(WEB_CONFIG_PATH, JSON.stringify(webConfig, null, 2) + "\n", "utf8");
-  return WEB_CONFIG_PATH;
-}
+// ⛔ Nie ma już `web/public/zrodla.json`. Lista dla przeglądarki powstawała tam przy
+// każdym starcie, ale strona serwowana jest z `web/dist`, do którego Vite kopiuje
+// `public/` WYŁĄCZNIE w chwili budowania — więc plik na dysku był świeży, a ten
+// w przeglądarce stary (2026-09-03: dist z 29.08 bez źródła `dji`, choć public je
+// miał). Nikt go zresztą nie czytał: panel bierze `/api/zrodla` na żywo, z żetonem.
+// Zostawał więc nieaktualny, niechroniony spis nazw źródeł — usunięty.

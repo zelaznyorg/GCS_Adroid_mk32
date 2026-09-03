@@ -184,17 +184,23 @@ async function porty() {
     { port: Number(process.env.PORT) || 8095, rola: "strona, API, telemetria", wTunelu: true },
     { port: 8889, rola: "MediaMTX — sygnalizacja WHEP", wTunelu: true },
     { port: 9997, rola: "API MediaMTX — TYLKO lokalnie", wTunelu: false },
+    { port: 8555, rola: "RTSP dla NAGRYWARKI pulpitu — TYLKO lokalnie", wTunelu: false },
   ];
   const out = [];
   for (const p of opis) out.push({ ...p, zywy: await portZajety(p.port) });
 
-  // 9997 wystawione na świat znaczy, że każdy w sieci może przestawiać ścieżki
-  // obrazu. Sprawdzamy to osobno, pod adresem zewnętrznym stacji.
+  // Porty „TYLKO lokalnie” wystawione na świat to dziura: 9997 pozwala każdemu
+  // w sieci przestawiać ścieżki obrazu, a 8555 oddaje obraz bez żetonu widza
+  // (mtx-auth ufa RTSP właśnie dlatego, że ma być z pętli zwrotnej). Sprawdzamy
+  // to osobno, pod adresem zewnętrznym stacji.
   const zewnetrzny = Object.values(os.networkInterfaces())
     .flat()
     .find((i) => i && i.family === "IPv4" && !i.internal)?.address;
-  const api9997 = out.find((p) => p.port === 9997);
-  if (api9997 && zewnetrzny) api9997.wystawioneNaSwiat = await portZajety(9997, zewnetrzny);
+  if (zewnetrzny) {
+    for (const p of out) {
+      if (!p.wTunelu) p.wystawioneNaSwiat = await portZajety(p.port, zewnetrzny);
+    }
+  }
 
   return out;
 }
