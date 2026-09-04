@@ -156,6 +156,10 @@ export function zapiszZeton(zetonNowy, dane = {}, adres = adresStacji()) {
       zeton: zetonNowy,
       imie: dane.imie ?? s.stacje[adres].imie ?? null,
       rola: dane.rola ?? s.stacje[adres].rola ?? null,
+      // Z jakiego kodu zaproszenia wziął się ten żeton — żeby INNY kod w adresie
+      // (np. kafelek stacji z kodem admina) mógł podmienić tożsamość, a ten sam
+      // nie logował od nowa przy każdym otwarciu.
+      kod: dane.kod ?? s.stacje[adres].kod ?? null,
       ostatnio: Date.now(),
     };
     s.aktywna = adres;
@@ -163,6 +167,11 @@ export function zapiszZeton(zetonNowy, dane = {}, adres = adresStacji()) {
     delete s.stacje[adres].zeton;
   }
   zapisz(s);
+}
+
+/** Kod zaproszenia, z którego pochodzi zapamiętany żeton (null, gdy nieznany). */
+export function kodZetonu(adres = adresStacji()) {
+  return wczytaj().stacje[adres]?.kod || null;
 }
 
 export function wyloguj(adres = adresStacji()) {

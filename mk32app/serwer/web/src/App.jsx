@@ -14,7 +14,10 @@ import { useBudzik, usePelnyEkran } from "./useEkran";
 import { usePokretlo } from "./usePokretlo";
 import { useStrzalki } from "./useStrzalki";
 import { BEZ_POKRETLA } from "./ogniskowanie";
-import { api, zeton, wyloguj, BladDostepu, BladLacza, adresWhep, adresStacji, stacjaObca } from "./sesja";
+import {
+  api, zeton, wyloguj, BladDostepu, BladLacza, adresWhep, adresStacji, stacjaObca,
+  kodZAdresu, wyczyscKodZAdresu, kodZetonu, rozbierzKod, przyjmijZaproszenie,
+} from "./sesja";
 import Osd from "./Osd";
 import Wejscie from "./Wejscie";
 import Widzowie from "./Widzowie";
@@ -95,6 +98,27 @@ export default function App() {
 
   // ---- kim jestem ----
   const rozpoznaj = useCallback(() => {
+    // ⛔ Kod zaproszenia w adresie ma pierwszeństwo przed zapamiętanym żetonem — ale
+    // tylko wtedy, gdy to INNY kod niż ten, z którego żeton pochodzi. Powód
+    // (2026-09-03, GSB): kafelek stacji otworzył stronę najpierw z kodem widza,
+    // profil zapamiętał żeton widza, a po poprawieniu kafelka na kod admina strona
+    // dalej wchodziła jako widz — bez ADMIN i STACJA. Kliknięcie w kafelek z kodem
+    // JEST decyzją, kim się wchodzi. Ten sam kod nie loguje od nowa: jedno wejście,
+    // jeden żeton.
+    const zAdresu = kodZAdresu();
+    const rozebrany = zAdresu ? rozbierzKod(zAdresu) : null;
+    if (rozebrany && rozebrany.kod !== kodZetonu(rozebrany.adres || adresStacji())) {
+      przyjmijZaproszenie(zAdresu)
+        .then(() => wyczyscKodZAdresu())
+        .catch(() => { /* zły albo zużyty kod — zostaje to, co było */ })
+        .finally(() => rozpoznajZeton());
+      return;
+    }
+    rozpoznajZeton();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rozpoznajZeton = () => {
     if (!zeton()) {
       setJa(null);
       setGotowe(true);
@@ -112,7 +136,7 @@ export default function App() {
         else setPowodWejscia(e instanceof BladDostepu && e.status === 401 ? "wygasle" : "brak");
       })
       .finally(() => setGotowe(true));
-  }, []);
+  };
 
   // Jednorazowe rozpoznanie zapisanej sesji jest celowym przejściem stanu aplikacji.
   // eslint-disable-next-line react-hooks/set-state-in-effect

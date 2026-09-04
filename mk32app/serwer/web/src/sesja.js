@@ -19,7 +19,7 @@ import { adresStacji, zeton, zapiszZeton, ustawStacje, rozbierzKod } from "./pol
 
 export { zeton, ustawStacje, rozbierzKod };
 export { wyloguj, adresStacji, adresWhep, listaStacji, zapomnijStacje, stacjaObca,
-         normalizujAdres, zbudujKodPolaczenia, kodZAdresu, wyczyscKodZAdresu } from "./polaczenie";
+         normalizujAdres, zbudujKodPolaczenia, kodZAdresu, wyczyscKodZAdresu, kodZetonu } from "./polaczenie";
 
 // Rozkłada żeton na parę dla HTTP Basic.
 export function basic(adres = adresStacji()) {
@@ -130,6 +130,6 @@ export async function przyjmijZaproszenie(kod, adresRezerwowy = null) {
   // Dopiero teraz zapamiętujemy stację: dopisanie jej przed udaną wymianą zostawiałoby
   // na liście adresy, pod którymi nigdy nie było wstępu.
   ustawStacje(adres);
-  zapiszZeton(dane.zeton, { imie: dane.imie, rola: dane.rola }, adres);
+  zapiszZeton(dane.zeton, { imie: dane.imie, rola: dane.rola, kod: rozebrany.kod }, adres);
   return dane;
 }
