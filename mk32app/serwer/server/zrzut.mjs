@@ -279,8 +279,14 @@ export class OdbiorZrzutu {
     const cel = `rtmp://127.0.0.1:1935/${this.sciezka}?user=dji&pass=${this.hasloZrodla}`;
     const argumenty = [
       "-hide_banner", "-loglevel", "info",
-      // Wejście: goły strumień H.264. Znaczników czasu w nim nie ma, więc podajemy
-      // tempo — inaczej ffmpeg zgaduje 25 kl./s i obraz idzie w zwolnionym tempie.
+      // Wejście: goły strumień H.264. Znaczników czasu w nim nie ma. Tempo z nagłówka
+      // jest tylko ZAPASEM — koder na aparaturze karmiony powierzchnią wydaje klatkę
+      // przy każdej zmianie ekranu (do 60/s), a przy bezruchu powtarza ostatnią, więc
+      // rzeczywiste tempo jest zmienne. Sztywne stemplowanie „15 kl./s" dawało obraz,
+      // który raz przyspieszał, raz zamierał (Tom, 2026-09-05: „nie jest płynny").
+      // Znacznikiem jest więc chwila PRZYJŚCIA klatki — z dokładnością do drgań
+      // sieci lokalnej, których odtwarzacz i tak wygładza buforem.
+      "-use_wallclock_as_timestamps", "1",
       "-f", "h264", "-framerate", String(fps), "-i", "pipe:0",
       // ⛔ Żadnych filtrów przy `-c copy` — to się wyklucza. Pierwsza wersja miała tu
       // `-vf blackdetect` do wykrywania `FLAG_SECURE` i ffmpeg wysypywał się na
