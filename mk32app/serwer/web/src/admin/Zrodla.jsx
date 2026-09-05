@@ -1,16 +1,20 @@
+import React from "react";
 // Karta ŹRÓDŁA — stan i zarządzanie: drony i kamery, które stacja pokazuje.
 //
 // Nazwa, widoczność dla widzów, hasło drona, usuwanie. Dodawanie jest osobną
-// kartą (NOWE ŹRÓDŁO) — tu jest to, co już jest.
+// kartą (NOWE ŹRÓDŁO) — tu jest to, co już jest. Dane do aparatury (hasło, adresy)
+// otwierają się w osobnym, pełnoszerokim wierszu pod źródłem — patrz DaneAparatury.jsx.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../sesja";
-import { ODSWIEZAJ_MS, zaznacz, tekst } from "./pomoc";
+import { ODSWIEZAJ_MS, tekst } from "./pomoc";
+import DaneAparatury from "./DaneAparatury";
 
 export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
   const [info, setInfo] = useState(null);
   // Usunięcie źródła zabiera obraz każdemu, kto na nie patrzy — dwa kliknięcia,
   // jak przy restarcie usługi; uzbrojenie mija po 5 s.
   const [usunUzbrojone, setUsunUzbrojone] = useState(null);
+  const [otwarte, setOtwarte] = useState({});     // które źródła mają rozwinięte dane do aparatury
   const [pokazHaslo, setPokazHaslo] = useState({});
 
   const pobierz = useCallback(() => {
@@ -60,6 +64,11 @@ export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
   const lista = info?.zrodla || [];
   const maks = info?.maks ?? 6;
 
+  // Dwa drony z tym samym hasłem to pułapka: zrzut ekranu nie podaje ścieżki, więc
+  // stacja przypisze go pierwszemu z listy. Pokazujemy to przy danych do aparatury.
+  const duplikaty = (z) =>
+    lista.filter((o) => o.nadawany && o.id !== z.id && o.haslo && o.haslo === z.haslo).map((o) => o.nazwa);
+
   return (
     <>
       <section>
@@ -73,88 +82,92 @@ export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
         <table className="tabela">
           <tbody>
             {lista.map((z) => (
-              <tr key={z.id}>
-                <td>
-                  <span
-                    className={`dioda ${z.zywe ? "ok" : ""}`}
-                    title={z.zywe ? "strumień idzie" : z.nadawany ? "czeka na nadawcę" : "nikt nie ogląda — pobieranie na żądanie"}
-                  >
-                    {z.zywe ? "NADAJE" : z.nadawany ? "CZEKA" : "GOTOWE"}
-                  </span>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="pole"
-                    defaultValue={z.nazwa}
-                    title="Nazwa widoczna dla widzów — zmiana zapisuje się po wyjściu z pola"
-                    onBlur={(e) => {
-                      const nazwa = e.target.value.trim();
-                      if (nazwa && nazwa !== z.nazwa) dzialanie(api(sciezka(z.id), { method: "PUT", body: { nazwa } }));
-                    }}
-                  />
-                  <div className="przypis drobne">
-                    <code>{z.id}</code> · {z.nadawany ? "nadawane (dron wypycha obraz)" : "pobierane (stacja ściąga RTSP)"}
-                    {z.czytelnikow ? ` · ogląda: ${z.czytelnikow}` : ""}
-                  </div>
-                  {z.nadawany ? (
-                    <div className="przypis drobne">
-                      RTMP (Pilot 2 / DJI Fly):{" "}
-                      <code className="endpoint maly" onClick={zaznacz} title="Kliknij, żeby zaznaczyć">
-                        {pokazHaslo[z.id] ? z.adresRtmp : z.adresRtmp.replace(/pass=.*$/, "pass=••••••••")}
-                      </code>
-                      <br />
-                      Horyzont (zrzut ekranu): adres <code>{z.adresZrzutu}</code>, hasło{" "}
-                      <code onClick={zaznacz} title="Kliknij, żeby zaznaczyć">{pokazHaslo[z.id] ? z.haslo : "••••••••"}</code>
-                    </div>
-                  ) : (
-                    <div className="przypis drobne">
-                      <code>{z.rtspGlowny}</code>
-                      {z.rtspPomocniczy ? <> · pomocniczy <code>{z.rtspPomocniczy}</code></> : null}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <div className="rzad">
-                    <button
-                      type="button"
-                      className={`przelacznik drobny ${z.widoczne ? "wlaczony" : ""}`}
-                      onClick={() => dzialanie(api(sciezka(z.id), { method: "PUT", body: { widoczne: !z.widoczne } }))}
-                      title={z.widoczne ? "Widzowie widzą to źródło — kliknij, żeby ukryć" : "Ukryte przed widzami — kliknij, żeby pokazać"}
+              <React.Fragment key={z.id}>
+                <tr>
+                  <td>
+                    <span
+                      className={`dioda ${z.zywe ? "ok" : ""}`}
+                      title={z.zywe ? "strumień idzie" : z.nadawany ? "czeka na nadawcę" : "nikt nie ogląda — pobieranie na żądanie"}
                     >
-                      {z.widoczne ? "WIDOCZNE" : "UKRYTE"}
-                    </button>
-                    {z.nadawany && (
-                      <>
-                        <button
-                          type="button"
-                          className="przelacznik drobny"
-                          onClick={() => setPokazHaslo((p) => ({ ...p, [z.id]: !p[z.id] }))}
-                          title="Hasło i pełny adres pokazujemy tylko na żądanie — ekran bywa oglądany przez ramię"
-                        >
-                          {pokazHaslo[z.id] ? "SCHOWAJ HASŁO" : "POKAŻ HASŁO"}
-                        </button>
-                        <button
-                          type="button"
-                          className="przelacznik drobny"
-                          onClick={() => dzialanie(api(`${sciezka(z.id)}/nowe-haslo`, { method: "POST" }))}
-                          title="Nowe hasło — adres wpisany w aparaturze przestanie działać"
-                        >
-                          NOWE HASŁO
-                        </button>
-                      </>
+                      {z.zywe ? "NADAJE" : z.nadawany ? "CZEKA" : "GOTOWE"}
+                    </span>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="pole"
+                      defaultValue={z.nazwa}
+                      title="Nazwa widoczna dla widzów — zmiana zapisuje się po wyjściu z pola"
+                      onBlur={(e) => {
+                        const nazwa = e.target.value.trim();
+                        if (nazwa && nazwa !== z.nazwa) dzialanie(api(sciezka(z.id), { method: "PUT", body: { nazwa } }));
+                      }}
+                    />
+                    <div className="przypis drobne">
+                      <code>{z.id}</code> · {z.nadawany ? "nadawane (dron wypycha obraz)" : "pobierane (stacja ściąga RTSP)"}
+                      {z.czytelnikow ? ` · ogląda: ${z.czytelnikow}` : ""}
+                    </div>
+                    {!z.nadawany && (
+                      <div className="przypis drobne">
+                        <code>{z.rtspGlowny}</code>
+                        {z.rtspPomocniczy ? <> · pomocniczy <code>{z.rtspPomocniczy}</code></> : null}
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      className={`przelacznik drobny ${usunUzbrojone === z.id ? "pilne" : ""}`}
-                      onClick={() => usun(z.id)}
-                      title="Usuwa źródło i jego ścieżkę — obraz zniknie każdemu, kto na nie patrzy"
-                    >
-                      {usunUzbrojone === z.id ? "NA PEWNO?" : "USUŃ"}
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    <div className="rzad">
+                      <button
+                        type="button"
+                        className={`przelacznik drobny ${z.widoczne ? "wlaczony" : ""}`}
+                        onClick={() => dzialanie(api(sciezka(z.id), { method: "PUT", body: { widoczne: !z.widoczne } }))}
+                        title={z.widoczne ? "Widzowie widzą to źródło — kliknij, żeby ukryć" : "Ukryte przed widzami — kliknij, żeby pokazać"}
+                      >
+                        {z.widoczne ? "WIDOCZNE" : "UKRYTE"}
+                      </button>
+                      {z.nadawany && (
+                        <>
+                          <button
+                            type="button"
+                            className={`przelacznik drobny ${otwarte[z.id] ? "wlaczony" : ""}`}
+                            onClick={() => setOtwarte((o) => ({ ...o, [z.id]: !o[z.id] }))}
+                            title="Hasło i adresy do wpisania w aparaturze — w osobnym wierszu, w całości"
+                          >
+                            {otwarte[z.id] ? "ZWIŃ DANE" : "DANE APARATURY"}
+                          </button>
+                          <button
+                            type="button"
+                            className="przelacznik drobny"
+                            onClick={() => dzialanie(api(`${sciezka(z.id)}/nowe-haslo`, { method: "POST" }))}
+                            title="Nowe hasło — adres wpisany w aparaturze przestanie działać"
+                          >
+                            NOWE HASŁO
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className={`przelacznik drobny ${usunUzbrojone === z.id ? "pilne" : ""}`}
+                        onClick={() => usun(z.id)}
+                        title="Usuwa źródło i jego ścieżkę — obraz zniknie każdemu, kto na nie patrzy"
+                      >
+                        {usunUzbrojone === z.id ? "NA PEWNO?" : "USUŃ"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {z.nadawany && otwarte[z.id] && (
+                  <tr className="wiersz-danych">
+                    <td colSpan={3}>
+                      <DaneAparatury
+                        zrodlo={z}
+                        pokaz={Boolean(pokazHaslo[z.id])}
+                        naPokaz={() => setPokazHaslo((p) => ({ ...p, [z.id]: !p[z.id] }))}
+                        duplikaty={duplikaty(z)}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
             {info && lista.length === 0 && (
               <tr><td colSpan={3} className="przypis">brak źródeł — dodaj pierwsze w karcie NOWE ŹRÓDŁO</td></tr>

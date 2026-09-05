@@ -6,7 +6,8 @@
 // w tabeli. W polu nie ma czasu na zgadywanie, gdzie co jest.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../sesja";
-import { zaznacz, tekst } from "./pomoc";
+import { tekst } from "./pomoc";
+import DaneAparatury from "./DaneAparatury";
 
 const PUSTE = { rodzaj: "nadawane", nazwa: "", rtspGlowny: "" };
 
@@ -128,26 +129,8 @@ export default function NoweZrodlo({ naZmianeZrodel, naBlad, naUwaga, naKarta })
           <div className="etykieta">3. GOTOWE — {dodane.nazwa.toUpperCase()} JEST NA LIŚCIE</div>
           {dodane.nadawany ? (
             <>
-              <div className="przypis">
-                <strong>Pilot 2</strong> → Transmisja na żywo → RTMP — wklej ten adres (hasło w środku):
-              </div>
-              <code className="endpoint maly" onClick={zaznacz} title="Kliknij, żeby zaznaczyć">
-                {pokazHaslo ? dodane.adresRtmp : dodane.adresRtmp.replace(/pass=.*$/, "pass=••••••••")}
-              </code>
-              <div className="przypis">
-                <strong>Horyzont</strong> (zrzut ekranu aparatury) — adres{" "}
-                <code onClick={zaznacz} title="Kliknij, żeby zaznaczyć">{dodane.adresZrzutu}</code>, hasło{" "}
-                <code onClick={zaznacz} title="Kliknij, żeby zaznaczyć">{pokazHaslo ? dodane.haslo : "••••••••"}</code>
-              </div>
+              <DaneAparatury zrodlo={dodane} pokaz={pokazHaslo} naPokaz={() => setPokazHaslo((p) => !p)} />
               <div className="rzad">
-                <button
-                  type="button"
-                  className="przelacznik drobny"
-                  onClick={() => setPokazHaslo((p) => !p)}
-                  title="Hasło pokazujemy tylko na żądanie — ekran bywa oglądany przez ramię"
-                >
-                  {pokazHaslo ? "SCHOWAJ HASŁO" : "POKAŻ HASŁO"}
-                </button>
                 <button type="button" className="przelacznik drobny" onClick={() => naKarta?.("zrodla")}>
                   PRZEJDŹ DO ŹRÓDEŁ
                 </button>

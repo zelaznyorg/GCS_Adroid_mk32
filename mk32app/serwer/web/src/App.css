@@ -694,3 +694,36 @@
 /* Wybór rodzaju źródła: dwa duże klawisze zamiast listy rozwijanej — na dotyk
    i pokrętło lista rozwijana jest najgorszym z możliwych elementów. */
 .wybor-rodzaju .przelacznik { min-height: 48px; white-space: normal; text-align: left; }
+
+/* --- dane do aparatury (admin/DaneAparatury.jsx) --- */
+
+/* Pełnoszeroki blok pod wierszem źródła. Hasło przepisuje się ręcznie na
+   klawiaturze kontrolera, więc: duże, monospace, z odstępem między znakami,
+   łamane, nigdy obcięte. */
+.dane-aparatury {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--ok);
+  padding: 12px 14px;
+  margin: 4px 0 8px;
+}
+
+.dane-aparatury .dana { display: flex; flex-direction: column; gap: 4px; }
+
+.karta code.sekret {
+  font-size: 26px;
+  letter-spacing: 0.14em;
+  line-height: 1.35;
+  color: var(--ok);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  user-select: all;
+  cursor: pointer;
+}
+
+.karta code.sekret.drobniejszy { font-size: 18px; letter-spacing: 0.06em; }
+.karta code.sekret.ukryty { color: var(--tekst-slaby); letter-spacing: 0.3em; }
+
+.tabela tr.wiersz-danych td { border-bottom: 1px solid rgba(150, 170, 190, 0.15); padding-right: 0; }

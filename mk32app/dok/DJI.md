@@ -486,8 +486,11 @@ systemowy, ale zostawiała po nim **szary pas** — pełny ekran musi iść z mo
 ### Co trzeba zrobić przy sprzęcie
 
 1. Wgrać APK na kontroler (`adb install` albo przez pamięć masową).
-2. W aplikacji wpisać adres stacji (`192.168.88.30:5601`) i **hasło urządzenia**
-   z panelu ADMIN (`GET /api/zrzut` podaje adres i hasło gotowe do przepisania).
+2. W aplikacji wpisać adres stacji (`192.168.88.30:5601`) i **hasło ŹRÓDŁA** —
+   panel ADMIN → karta ŹRÓDŁA → wiersz drona → DANE APARATURY → POKAŻ HASŁO.
+   ⚠ Od 2026-09-03 to NIE jest „hasło urządzenia” z `dji.json` (tamto służy DJI Cloud API);
+   każdy dron ma własne hasło źródła i tylko ono otwiera port 5601. Zmierzone 2026-09-05:
+   złe hasło = 20 odrzuceń w dzienniku stacji i „stacja nie odpowiada” na kontrolerze.
 3. START → Android zapyta o zgodę na przechwytywanie ekranu (**pyta za każdym razem,
    tego nie da się zapamiętać** — tak działa Android i jest to celowe).
 4. Na stacji wybrać źródło **DJI — nadawany**.
