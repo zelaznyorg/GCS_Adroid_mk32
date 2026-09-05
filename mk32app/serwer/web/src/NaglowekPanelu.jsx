@@ -23,7 +23,7 @@ import { useEffect } from "react";
 const PANELE = [
   { id: "mapa", etykieta: "MAPA", opis: "Gdzie jest maszyna, dom i trasa", minRola: "widz" },
   { id: "widzowie", etykieta: "OGLĄDA", opis: "Kto teraz patrzy", minRola: "widz" },
-  { id: "admin", etykieta: "ADMIN", opis: "Zaproszenia, widzowie, archiwum", minRola: "admin" },
+  { id: "admin", etykieta: "ADMIN", opis: "Zaproszenia, dostęp, źródła, archiwum, diagnostyka", minRola: "admin" },
   { id: "stacja", etykieta: "STACJA", opis: "Usługi, zasilanie, sieć, dziennik", minRola: "admin" },
 ];
 

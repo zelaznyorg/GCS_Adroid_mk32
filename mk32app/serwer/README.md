@@ -17,8 +17,9 @@
 
 ## Źródła obrazu: z panelu ADMIN, najwyżej sześć, każdy dron z własnym hasłem
 
-Od 2026-09-03 źródeł nie edytuje się w `zrodla.json` przez ssh. Panel **ADMIN →
-ŹRÓDŁA OBRAZU** dodaje, nazywa, ukrywa i usuwa je **na żywo** (ścieżki MediaMTX
+Od 2026-09-03 źródeł nie edytuje się w `zrodla.json` przez ssh. Karta **ADMIN → NOWE ŹRÓDŁO**
+dodaje (trzy kroki, na końcu hasło do wpisania w aparaturze), a karta **ADMIN → ŹRÓDŁA**
+nazywa, ukrywa i usuwa je **na żywo** (ścieżki MediaMTX
 przez API na 9997, plik na dysku przepisany w tym samym ruchu):
 
 | Rodzaj | Kto zaczyna | Co trzeba podać |
@@ -162,7 +163,7 @@ logi/mediamtx.log    wyjście MediaMTX
 ```
 
 `POZIOM=szczegol sh start.sh` podnosi gadatliwość. `sh start.sh --pilnuj` podnosi serwer
-po awarii. Te same wpisy widać w panelu administratora, sekcja REJESTR TECHNICZNY.
+po awarii. Te same wpisy widać w panelu administratora, karta DIAGNOSTYKA.
 Opis: [../dok/LOGI_I_BLEDY.md](../dok/LOGI_I_BLEDY.md).
 
 ## Użytkownicy i dostęp
@@ -187,7 +188,7 @@ także jego trwającą sesję WebRTC.
 | `ADMIN_IMIE` | `administrator` | imię pierwszego zaproszenia |
 | `DATA_DIR` | katalog serwera | gdzie leży `dostep.json` i `zrodla.json` |
 
-## Adres dostępu — sekcja ŁĄCZA I ADRESY w panelu admina
+## Adres dostępu — karty ZAPROSZENIA (adresy w LAN) i DIAGNOSTYKA (endpoint) w panelu admina
 
 Dostęp zdalny stoi na WireGuardzie bez serwera koordynującego, więc klient musi wiedzieć,
 jaki adres ma dziś router stacji. Panel administratora to pokazuje: endpoint `ADRES:51820`
@@ -265,7 +266,7 @@ musiałby go dekodować i cała oszczędność z remuksu by przepadła.
 | **`przy-widzach`** | obraz, gdy ktoś patrzy | **lot, którego nikt nie oglądał, nie ma nagrania** |
 | `zawsze` | wszystko | strumień leci bez przerwy: obciąża łącze radiowe i zajmuje slot ZR30 |
 
-Przełącznik jest w panelu administratora (sekcja ARCHIWUM) i działa **na żywo** —
+Przełącznik jest w panelu administratora (karta ARCHIWUM) i działa **na żywo** —
 przestawia ścieżki przez API MediaMTX, bez restartu, żeby nie zabierać obrazu widzom.
 
 Nagrywany jest **wyłącznie strumień główny**; pomocniczy to droga odwrotu dla

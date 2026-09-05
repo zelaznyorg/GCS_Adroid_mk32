@@ -188,15 +188,25 @@ do jej konsoli i tak oznacza dostęp do wszystkiego (§7).
 
 ## 4. Panel administratora
 
-| Sekcja | Zawartość |
-|---|---|
-| **STEROWANIE DOSTĘPEM** | tryb ciszy, limit widzów, źródło domyślne |
-| **KTO OGLĄDA** | imię, rola, strumień, adres, od kiedy, przycisk ODETNIJ |
-| **ZAPROSZENIA** | wydawanie, lista ważnych, unieważnianie |
-| **ŁĄCZA I ADRESY** | stan MediaMTX i telemetrii, liczba sesji obrazu, endpoint WireGuarda, adresy w LAN |
-| **ARCHIWUM** | tryb nagrywania obrazu, limity, zajętość dysku, ostatnie nagrania, SPRZĄTAJ TERAZ |
-| **REJESTR TECHNICZNY** | co się zepsuło, ze stosami wywołań |
-| **DZIENNIK** | wejścia, wyjścia, odcięcia, odmowy, wydane zaproszenia, restarty usług |
+Od 2026-09-04 panel ma **karty**, nie jedną długą ścianę sekcji. Każda karta odpowiada
+na jedno pytanie, a jej nazwa jest tym pytaniem — na stacji, z pokrętłem zamiast myszy,
+nie ma czasu na przewijanie i zgadywanie (uwaga Toma po pierwszym dniu z panelem).
+
+| Karta | Pytanie | Zawartość |
+|---|---|---|
+| **ZAPROSZENIA** | kogo wpuścić | 1. wydaj (dla kogo, rola z opisem, ważność, jednorazowe) → 2. gotowy link, kod i kod połączeniowy → 3. lista ważnych: POKAŻ LINK, UNIEWAŻNIJ; na dole adresy stacji w LAN |
+| **DOSTĘP** | kto ogląda i co może | tryb ciszy, limit widzów, źródło domyślne; kto ogląda teraz (imię, rola, strumień, adres, od kiedy, ODETNIJ); dziennik dostępu |
+| **NOWE ŹRÓDŁO** | jak podłączyć drona albo kamerę | 1. dron DJI (nadaje) albo kamera IP (stacja pobiera) → 2. nazwa (+ adres RTSP) → 3. GOTOWE: adres RTMP dla Pilota 2 i hasło dla aplikacji Horyzont, do przepisania od razu |
+| **ŹRÓDŁA** | co stacja pokazuje | stan (NADAJE / CZEKA / GOTOWE), nazwa, WIDOCZNE/UKRYTE, POKAŻ HASŁO, NOWE HASŁO, USUŃ (dwa kliknięcia); klawisz + NOWE ŹRÓDŁO |
+| **ARCHIWUM** | co nagrywamy | tryb nagrywania obrazu, limity, zajętość dysku, ostatnie nagrania, SPRZĄTAJ TERAZ |
+| **DIAGNOSTYKA** | czy działa i co się zepsuło | stan MediaMTX i telemetrii, sesje obrazu, endpoint WireGuarda, rejestr techniczny ze stosami |
+
+Dodawanie źródła jest **osobno od listy** celowo: dodawanie to czynność z końcem, którym
+jest hasło do wpisania w aparaturze; lista to stan. Zaproszenia są osobno od DOSTĘPU
+z tego samego powodu: wydanie kodu to czynność, kto ogląda — stan.
+
+Ostatnio otwarta karta jest pamiętana w przeglądarce (`dron15.admin.karta`). Każda karta
+pobiera własne dane i odświeża je tylko, gdy jest otwarta.
 
 **Adres publiczny stacji przeniesiono tu z dolnego paska** (był tam od decyzji 6).
 To adres bramy do sieci — widzowi do niczego nie jest potrzebny, a wiedza o nim

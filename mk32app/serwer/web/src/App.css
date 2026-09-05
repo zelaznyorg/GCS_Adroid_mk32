@@ -644,3 +644,53 @@
 .kafelek-stan.blad,
 .kafelek-stan.brak_dekodera { color: var(--uwaga); }
 .kafelek-stan.odmowa { color: var(--blokada); }
+
+/* --- karty panelu ADMIN --- */
+
+/* Pasek kart pod nagłówkiem. Jedna karta = jedno pytanie (Admin.jsx, nagłówek).
+   Cele dotykowe jak `.przelacznik` — panel obsługuje się palcem i pokrętłem. */
+.zakladki-admina {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zakladka {
+  background: transparent;
+  color: var(--tekst-slaby);
+  border: 1px solid var(--linia);
+  border-bottom: 3px solid var(--linia);
+  padding: 10px 16px;
+  min-height: 44px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.zakladka:hover { background: var(--klawisz); color: var(--tekst); }
+.zakladka.wlaczona { color: var(--akcent); border-color: var(--akcent); background: var(--klawisz); }
+.zakladka:focus-visible { outline: 2px solid var(--akcent); outline-offset: 2px; }
+
+/* Jedno zdanie pod kartami: co tu się robi. Wisi tuż pod paskiem, bez odstępu
+   karty — czyta się je razem z nazwą. */
+.opis-karty {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+  line-height: 1.5;
+  margin: -10px 0 0;
+}
+
+/* Blok wyniku: „gotowe, oto co wpisać". Obramowany, bo to jedyna rzecz na
+   karcie, którą trzeba teraz przepisać albo wysłać — ma się odcinać od reszty. */
+.karta section.blok {
+  border: 1px solid var(--linia);
+  padding: 12px 14px;
+}
+
+.karta section.blok.wynik { border-color: var(--ok); }
+
+/* Wybór rodzaju źródła: dwa duże klawisze zamiast listy rozwijanej — na dotyk
+   i pokrętło lista rozwijana jest najgorszym z możliwych elementów. */
+.wybor-rodzaju .przelacznik { min-height: 48px; white-space: normal; text-align: left; }
