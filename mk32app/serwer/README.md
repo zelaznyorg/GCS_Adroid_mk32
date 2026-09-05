@@ -27,6 +27,10 @@ przez API na 9997, plik na dysku przepisany w tym samym ruchu):
 | **dron DJI — nadaje do stacji** | aparatura wypycha obraz (RTMP z Pilota 2 albo APK zrzutu ekranu) | tylko nazwę; identyfikator i **hasło** stacja zakłada sama |
 | **kamera IP — stacja pobiera** | stacja ściąga RTSP na żądanie | nazwę i `rtsp://…` |
 
+Przykład pobieranego źródła na samej stacji: **tor analogowy CVBS** — `rtsp://127.0.0.1:8554/uav`,
+czysty H.264 640×480 z usługi `pi5-uas-rtsp` (PI5setup), tej samej, którą nagrywa NAGRYWARKA.
+Dodany 2026-09-05 jako `cvbs`; MediaMTX ciągnie go tylko, gdy ktoś patrzy.
+
 **Hasło na źródło, nie na stację.** Każdy dron DJI ma własne — to nim mówi stacji,
 kim jest: w adresie RTMP dla Pilota 2 (`rtmp://stacja:1935/<id>?user=dji&pass=…`)
 i w aplikacji zrzutu ekranu (ta podaje samo hasło; stacja po haśle wie, pod którą

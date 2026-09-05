@@ -97,6 +97,26 @@ export default function App() {
   const ekranRef = useRef(null);
 
   // ---- kim jestem ----
+  const rozpoznajZeton = () => {
+    if (!zeton()) {
+      setJa(null);
+      setGotowe(true);
+      return;
+    }
+    api("/api/ja")
+      .then(setJa)
+      .catch((e) => {
+        setJa(null);
+        // Trzy różne przyczyny, trzy różne rady dla widza. „Stacja nie odpowiada"
+        // znaczy sprawdź adres i tunel; „zaproszenie wygasło" znaczy poproś o nowy kod.
+        // Zlanie ich w jedno „coś poszło nie tak" kosztowałoby telefon w polu
+        // kwadrans zgadywania.
+        if (e instanceof BladLacza) setPowodWejscia("nieosiagalna");
+        else setPowodWejscia(e instanceof BladDostepu && e.status === 401 ? "wygasle" : "brak");
+      })
+      .finally(() => setGotowe(true));
+  };
+
   const rozpoznaj = useCallback(() => {
     // ⛔ Kod zaproszenia w adresie ma pierwszeństwo przed zapamiętanym żetonem — ale
     // tylko wtedy, gdy to INNY kod niż ten, z którego żeton pochodzi. Powód
@@ -117,26 +137,6 @@ export default function App() {
     rozpoznajZeton();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const rozpoznajZeton = () => {
-    if (!zeton()) {
-      setJa(null);
-      setGotowe(true);
-      return;
-    }
-    api("/api/ja")
-      .then(setJa)
-      .catch((e) => {
-        setJa(null);
-        // Trzy różne przyczyny, trzy różne rady dla widza. „Stacja nie odpowiada"
-        // znaczy sprawdź adres i tunel; „zaproszenie wygasło" znaczy poproś o nowy kod.
-        // Zlanie ich w jedno „coś poszło nie tak" kosztowałoby telefon w polu
-        // kwadrans zgadywania.
-        if (e instanceof BladLacza) setPowodWejscia("nieosiagalna");
-        else setPowodWejscia(e instanceof BladDostepu && e.status === 401 ? "wygasle" : "brak");
-      })
-      .finally(() => setGotowe(true));
-  };
 
   // Jednorazowe rozpoznanie zapisanej sesji jest celowym przejściem stanu aplikacji.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -165,9 +165,14 @@ export default function App() {
       .catch((e) => setBladZrodel(String(e.message || e)));
   }, [ja]);
 
-  // Lista źródeł ładuje się przy wejściu — to celowe przejście stanu, nie skutek uboczny.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(wczytajZrodla, [wczytajZrodla]);
+  // Lista źródeł ładuje się przy wejściu i odświeża co 20 s. Źródła zmieniają się
+  // rzadko, ale zmieniają — i to z INNEGO urządzenia: 2026-09-05 tor CVBS dodano
+  // z laptopa, a okno na ekranie stacji nie wiedziało o nim do przeładowania strony.
+  useEffect(() => {
+    wczytajZrodla();
+    const t = setInterval(wczytajZrodla, 20000);
+    return () => clearInterval(t);
+  }, [wczytajZrodla]);
 
   const pokazMozaike = mozaika && zrodla.length >= 2;
 
