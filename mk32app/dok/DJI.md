@@ -213,7 +213,7 @@ nadawca ──H.264 po TCP:5601──► zrzut.mjs ──ffmpeg -c copy──►
 
 | Sprawdzenie | Wynik |
 |---|---|
-| przyjęcie i uwierzytelnienie | **FAKT** — złe hasło rozłączone, drugi nadawca odrzucony |
+| przyjęcie i uwierzytelnienie | **FAKT** — złe hasło rozłączone (od 2026-09-05 z odpowiedzią `{"blad":"zle-haslo"}`), drugi nadawca odrzucony tylko, gdy pierwszy nadaje żywo; milczący ≥ 2 s ustępuje nowemu |
 | przepakowanie do RTMP | **FAKT** — log MediaMTX: `[path dji] stream is available and online, 1 track (H264)` |
 | stan ścieżki w trakcie nadawania | **FAKT** — `ready: true`, źródło `rtmpConn`, `["H264"]`, 2,69 MB |
 | droga do widza (WHEP) | **FAKT** — punkt odpowiada (`400` na celowo pustym SDP, czyli dalej niż routing) |
@@ -321,7 +321,7 @@ aplikacje trzecich stron dla Pilota 2, ale to zależy od modelu i wersji oprogra
 |---|---|
 | APK się buduje | **FAKT** — `zrzut-debug.apk`, 809 kB, `BUILD SUCCESSFUL` |
 | złe hasło urządzenia | **FAKT** — stacja rozłącza |
-| drugi nadawca naraz | **FAKT** — odrzucony (przeplot klatek z dwóch źródeł byłby nie do oglądania) |
+| drugi nadawca naraz | **FAKT** — odrzucony, gdy pierwszy nadaje żywo (przeplot klatek z dwóch źródeł byłby nie do oglądania); **martwy pierwszy ustępuje** — 2026-09-05 wiszące gniazdo blokowało kontroler 20 razy w 3 min |
 | przekazanie strumienia do `ffmpeg` | **FAKT** — rozpoznany `h264 … 1280x720, 30 fps`, 2728 kB przeszło |
 | sprzątanie po rozłączeniu | **FAKT** — `nadaje = false`, ffmpeg zamknięty |
 | **cała droga w emulatorze Androida** | **FAKT** — APK wgrany, zgoda systemu, `Nadaje 1280x800 @ 15 kl./s`, odebrane **5,5 MB / 406 klatek**, klatki wyjęte ze strumienia pokazują żywy ekran |
