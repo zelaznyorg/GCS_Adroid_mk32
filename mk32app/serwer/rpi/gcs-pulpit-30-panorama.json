@@ -9,5 +9,6 @@
     "usluga": "panorama-gcs"
   },
   "pelny-ekran": true,
-  "ikona": "video-display-symbolic"
+  "ikona": "video-display-symbolic",
+  "okno": "chrome-"
 }
