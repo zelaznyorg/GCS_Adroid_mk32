@@ -287,13 +287,18 @@ export class OdbiorZrzutu {
       // Znacznikiem jest więc chwila PRZYJŚCIA klatki — z dokładnością do drgań
       // sieci lokalnej, których odtwarzacz i tak wygładza buforem.
       "-use_wallclock_as_timestamps", "1",
+      // Bez buforowania na wejściu i bez sondowania strumienia (Tom, 2026-09-05:
+      // „0,5 s opóźnienia"). Domyślnie ffmpeg zbiera do 5 s materiału, zanim ruszy,
+      // i trzyma zapas w kolejce — tu obraz ma iść klatka za klatką.
+      "-fflags", "nobuffer", "-flags", "low_delay", "-probesize", "32", "-analyzeduration", "0",
       "-f", "h264", "-framerate", String(fps), "-i", "pipe:0",
       // ⛔ Żadnych filtrów przy `-c copy` — to się wyklucza. Pierwsza wersja miała tu
       // `-vf blackdetect` do wykrywania `FLAG_SECURE` i ffmpeg wysypywał się na
       // starcie (`Filtergraph … with -c copy`, wyjście −22). Zmierzone, nie wywnioskowane.
       // Czerń wykrywamy teraz po przepływności (`podejrzenieCzerni`) — bez dekodowania,
       // bo RPi 5 nie ma sprzętowego dekodera H.264 i płaciłby za to procesorem.
-      "-c", "copy", "-f", "flv", cel,
+      // Każdy pakiet od razu do MediaMTX, nie po zebraniu porcji.
+      "-c", "copy", "-flush_packets", "1", "-f", "flv", cel,
     ];
     const p = spawn("ffmpeg", argumenty, { stdio: ["pipe", "ignore", "pipe"] });
     this.ffmpeg = p;
