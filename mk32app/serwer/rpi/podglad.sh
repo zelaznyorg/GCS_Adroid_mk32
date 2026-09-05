@@ -151,4 +151,17 @@ fi
 DIAGNOSTYKA=""
 [ -n "$GCS_DEVTOOLS" ] && DIAGNOSTYKA="--remote-debugging-port=${GCS_DEVTOOLS_PORT:-9222}"
 
+# ### ⛔ Jedna instancja na profil — inaczej kafelek „się zamyka"
+#
+# Chromium z zajętym `--user-data-dir` NIE otwiera drugiej instancji: oddaje adres
+# tej, która już działa, i KOŃCZY SIĘ w pół sekundy. Pulpit widzi koniec procesu,
+# uznaje, że aplikacja się zamknęła, i wraca na wierzch — a okno Panoramy stoi
+# pod nim, z każdym kliknięciem o jedno okno więcej. Zmierzone 2026-09-05: instancja
+# uruchomiona ręcznie po ssh, potem cztery kliknięcia w kafelek, każde „Zakończyła
+# się" po <1 s, 6 okien w `wlrctl toplevel list`. Dlatego stara instancja z tym
+# profilem idzie precz, zanim wystartuje nowa — kafelek znaczy „otwórz na nowo".
+if pkill -f -- "--user-data-dir=$PROFIL" 2>/dev/null; then
+  sleep 1
+fi
+
 exec "$CHROMIUM" $PLATFORMA $DIAGNOSTYKA --start-fullscreen --password-store=basic --window-size=1920,1080 --window-position=0,0 --user-data-dir="$PROFIL" --noerrdialogs --disable-infobars --disable-session-crashed-bubble --no-first-run --no-default-browser-check --lang=pl --accept-lang=pl-PL,pl --disable-features=TranslateUI,Translate --autoplay-policy=no-user-gesture-required --enable-features=VaapiVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxGL --ignore-gpu-blocklist --enable-gpu-rasterization --disable-background-timer-throttling --disable-renderer-backgrounding --app="$CEL"
