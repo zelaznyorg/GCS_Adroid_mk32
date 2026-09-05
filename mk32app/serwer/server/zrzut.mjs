@@ -35,6 +35,8 @@ export const PORT_ZRZUTU = Number(process.env.ZRZUT_PORT) || 5601;
 
 /** Ile bajtów nagłówka najwyżej czytamy, zanim uznamy to za śmieci. */
 const MAKS_NAGLOWEK = 512;
+const CZAS_NAGLOWKA_MS = 5000;
+const MAKS_OCZEKUJACYCH = 16;
 
 /**
  * Poniżej tylu kb/s uznajemy obraz za podejrzanie pusty. Zmierzone: czarny ekran
@@ -42,6 +44,24 @@ const MAKS_NAGLOWEK = 512;
  * DJI trzyma setki kb/s nawet przy nieruchomym obrazie.
  */
 const PROG_PUSTEGO_KBS = 20;
+
+/**
+ * Nadawca, który milczy dłużej, jest martwy — gniazdo TCP potrafi wisieć jako
+ * ESTABLISHED godzinami po tym, jak aparatura zmieniła sieć albo aplikacja padła.
+ * Zmierzone 2026-09-05: pierwsze połączenie z 14:12 wisiało bez danych, a każde
+ * następne z tego samego kontrolera dostawało „odrzucony drugi nadawca" — 20 razy
+ * w 3 minuty, aż do restartu serwera.
+ *
+ * ⚠ Nieruchomy ekran TEŻ jest ciszą: koder MediaCodec karmiony powierzchnią dostaje
+ * klatkę tylko wtedy, gdy ekran się zmieni. Zmierzone tego samego dnia: pulpit
+ * kontrolera bez ruchu = 0 bajtów, MediaMTX po 10 s zrzucał nadawcę RTMP
+ * (`closed: i/o timeout`), ffmpeg padał, a aplikacja „nadawała" w próżnię. Dlatego
+ * próg jest długi (60 s, spójny z `readTimeout` MediaMTX), a właściwa naprawa siedzi
+ * w Horyzoncie: koder ma powtarzać ostatnią klatkę (KEY_REPEAT_PREVIOUS_FRAME_AFTER).
+ */
+const CISZA_ZERWANIA_MS = 60000;
+/** Nowy nadawca z poprawnym hasłem przejmuje, gdy dotychczasowy milczy co najmniej tyle. */
+const CISZA_PRZEJECIA_MS = 2000;
 
 export class OdbiorZrzutu {
   /**
@@ -65,6 +85,7 @@ export class OdbiorZrzutu {
     this.wOknie = 0;
     this.oknoOd = 0;
     this.zegar = null;
+    this.oczekujace = new Set();
   }
 
   start() {
@@ -78,25 +99,53 @@ export class OdbiorZrzutu {
   }
 
   stop() {
+    for (const gniazdo of this.oczekujace) gniazdo.destroy();
     this.rozlacz("zatrzymanie serwera");
     this.serwer?.close();
   }
 
   przyjmij(gniazdo) {
     const skad = gniazdo.remoteAddress || "?";
+    let limitCzasu;
+    const zwolnijOczekiwanie = () => {
+      clearTimeout(limitCzasu);
+      this.oczekujace.delete(gniazdo);
+    };
+    // Obce lub stare gniazdo nie może zakończyć aktualnego strumienia.
+    gniazdo.on("error", () => gniazdo.destroy());
+    gniazdo.on("close", () => {
+      zwolnijOczekiwanie();
+      if (this.polaczenie === gniazdo) this.rozlacz("nadawca się rozłączył");
+    });
 
     // ⛔ Jeden nadawca naraz. Dwa strumienie pod tę samą ścieżkę dałyby przeplot
     // klatek z dwóch źródeł — obraz nie do oglądania, a przyczyna nieoczywista.
-    if (this.polaczenie) {
-      rejestr.ostrzezenie("zrzut", `odrzucony drugi nadawca (${skad}) — jeden już nadaje`);
+    // Ale odrzucamy tylko wtedy, gdy obecny nadawca NAPRAWDĘ nadaje. Milczący
+    // dostaje szansę na przejęcie po sprawdzeniu hasła (niżej, w nagłówku).
+    if (this.polaczenie && this.ciszaNadawcy() < CISZA_PRZEJECIA_MS) {
+      rejestr.ostrzezenie("zrzut", `odrzucony drugi nadawca (${skad}) — ${this.sciezka} nadaje żywo`);
+      gniazdo.end('{"blad":"zajete"}\n');
+      return;
+    }
+    if (this.oczekujace.size >= MAKS_OCZEKUJACYCH) {
       gniazdo.destroy();
       return;
     }
+    this.oczekujace.add(gniazdo);
+    // Limit całkowity, nie odnawiany pojedynczym bajtem od powolnego klienta.
+    limitCzasu = setTimeout(() => gniazdo.destroy(), CZAS_NAGLOWKA_MS);
+    limitCzasu.unref?.();
 
     let bufor = Buffer.alloc(0);
     let wpuszczony = false;
 
     const naglowek = (kawalek) => {
+      const nowyKoniec = kawalek.indexOf(0x0a);
+      const rozmiar = bufor.length + (nowyKoniec < 0 ? kawalek.length : nowyKoniec);
+      if (rozmiar > MAKS_NAGLOWEK) {
+        gniazdo.destroy();
+        return;
+      }
       bufor = Buffer.concat([bufor, kawalek]);
       const koniec = bufor.indexOf(0x0a); // nagłówek kończy się znakiem nowej linii
       if (koniec < 0) {
@@ -114,12 +163,30 @@ export class OdbiorZrzutu {
         gniazdo.destroy();
         return;
       }
-      const zrodlo = this.rozpoznaj(String(n.haslo || ""));
-      if (!zrodlo) {
-        rejestr.ostrzezenie("zrzut", `hasło od ${skad} nie pasuje do żadnego źródła nadawanego`);
+      if (!n || typeof n !== "object" || Array.isArray(n) || typeof n.haslo !== "string") {
         gniazdo.destroy();
         return;
       }
+      const zrodlo = this.rozpoznaj(String(n.haslo || ""));
+      if (!zrodlo) {
+        rejestr.ostrzezenie("zrzut", `hasło od ${skad} nie pasuje do żadnego źródła nadawanego`);
+        // Jedna linia odpowiedzi, żeby aparatura mogła powiedzieć „złe hasło" zamiast
+        // „stacja nie odpowiada" — bez niej zamknięcie gniazda wygląda jak brak łącza.
+        gniazdo.end('{"blad":"zle-haslo"}\n');
+        return;
+      }
+      // Kilka gniazd mogło czekać na hasło przed startem pierwszego nadawcy —
+      // albo poprzedni nadawca wisi martwy. Żywego nie ruszamy, martwego zastępujemy.
+      if (this.polaczenie) {
+        const cisza = this.ciszaNadawcy();
+        if (cisza < CISZA_PRZEJECIA_MS) {
+          gniazdo.end('{"blad":"zajete"}\n');
+          return;
+        }
+        rejestr.info("zrzut", `nowy nadawca (${skad}) przejmuje — poprzedni milczy od ${Math.round(cisza / 1000)} s`);
+        this.rozlacz("zastąpiony przez nowego nadawcę");
+      }
+      zwolnijOczekiwanie();
       this.sciezka = zrodlo.id;
       this.hasloZrodla = zrodlo.haslo;
 
@@ -132,6 +199,7 @@ export class OdbiorZrzutu {
 
       wpuszczony = true;
       this.polaczenie = gniazdo;
+      this.ostatniaKlatka = Date.now();
       this.wOknie = 0;
       this.oknoOd = Date.now();
       this.zegar = setInterval(() => this.sprawdzPrzeplywnosc(), 5000);
@@ -145,11 +213,10 @@ export class OdbiorZrzutu {
     };
 
     gniazdo.on("data", (kawalek) => {
+      if (gniazdo.destroyed) return;
       if (!wpuszczony) naglowek(kawalek);
       else this.doFfmpeg(kawalek);
     });
-    gniazdo.on("error", () => this.rozlacz("zerwane gniazdo"));
-    gniazdo.on("close", () => this.rozlacz("nadawca się rozłączył"));
   }
 
   doFfmpeg(dane) {
@@ -172,8 +239,22 @@ export class OdbiorZrzutu {
    * Rozstrzyga spojrzenie na obraz w przeglądarce — stąd ostrzeżenie mówi wprost,
    * czego szukać, zamiast twierdzić, że wie.
    */
+  /** Ile ms minęło od ostatnich danych obecnego nadawcy (Infinity, gdy nikt nie nadaje). */
+  ciszaNadawcy() {
+    return this.polaczenie ? Date.now() - this.ostatniaKlatka : Infinity;
+  }
+
   sprawdzPrzeplywnosc() {
     const teraz = Date.now();
+    // Strażnik martwego nadawcy — patrz CISZA_ZERWANIA_MS.
+    if (this.polaczenie && teraz - this.ostatniaKlatka > CISZA_ZERWANIA_MS) {
+      rejestr.ostrzezenie(
+        "zrzut",
+        `brak danych od aparatury od ${Math.round((teraz - this.ostatniaKlatka) / 1000)} s — zamykam, żeby mogła wrócić`
+      );
+      this.rozlacz("cisza nadawcy");
+      return;
+    }
     const sekund = (teraz - this.oknoOd) / 1000;
     if (sekund < 5) return;
     const kbs = (this.wOknie * 8) / 1000 / sekund;
@@ -219,8 +300,14 @@ export class OdbiorZrzutu {
     });
 
     p.on("exit", (kod) => {
-      if (this.ffmpeg === p) this.ffmpeg = null;
       rejestr.info("zrzut", `przepakowywanie zakończone (kod ${kod})`);
+      if (this.ffmpeg !== p) return;
+      this.ffmpeg = null;
+      // ⛔ ffmpeg padł, a aparatura dalej nadaje w próżnię: gniazdo żyje, dane lecą
+      // w `this.ffmpeg?.stdin` = nic, panel mówi „nadaje", widz ma czarny kafelek.
+      // Rozłączamy — aplikacja ponawia sama i zaczyna od świeżej klatki kluczowej
+      // (SPS/PPS/IDR), czego nowy ffmpeg w środku strumienia by nie dostał.
+      if (this.polaczenie) this.rozlacz(`ffmpeg zakończył się w trakcie nadawania (kod ${kod})`);
     });
     // ⛔ Bez tego zerwane gniazdo przewraca proces: `write` po zamkniętym stdin
     // podnosi EPIPE, którego nikt nie łapie.

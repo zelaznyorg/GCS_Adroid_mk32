@@ -326,6 +326,14 @@ export function generateMediamtxYml(zrodla, archiwum = readArchiwum()) {
 logLevel: info
 logDestinations: [stdout]
 
+# ⚠ Domyślne 10 s zrzucało nadawcę zrzutu ekranu (RTMP z ffmpeg) przy NIERUCHOMYM
+# ekranie kontrolera: koder MediaCodec z powierzchni nie wydaje klatek, gdy obraz się
+# nie zmienia, więc 10 s bez ruchu = \`closed: i/o timeout\` (zmierzone 2026-09-05,
+# 14:16:56 i 14:22:55). 60 s daje zapas; właściwa naprawa to powtarzanie ostatniej
+# klatki w Horyzoncie. Dotyczy też czytelników — WebRTC ma własne utrzymanie.
+readTimeout: 60s
+writeTimeout: 60s
+
 # API kontrolne (status + dodawanie źródeł na żywo). TYLKO LOKALNIE — nie wystawiać.
 api: yes
 apiAddress: 127.0.0.1:9997
