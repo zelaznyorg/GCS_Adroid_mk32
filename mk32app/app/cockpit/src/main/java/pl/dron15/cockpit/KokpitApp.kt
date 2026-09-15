@@ -43,7 +43,7 @@ class KokpitApp : Application() {
 
         Dziennik.info(
             "start",
-            "DRON15 Cockpit ${BuildConfig.VERSION_NAME}, Android ${android.os.Build.VERSION.RELEASE}, " +
+            "APilot ${BuildConfig.VERSION_NAME}, Android ${android.os.Build.VERSION.RELEASE}, " +
                 "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
         )
     }

@@ -131,7 +131,7 @@ private fun Zaslona(etap: String, modifier: Modifier = Modifier) {
 
             Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("DRON15 COCKPIT", style = Kroje.zgeszczona(15.sp, Barwy.Tekst))
+                Text("APILOT", style = Kroje.zgeszczona(15.sp, Barwy.Tekst))
                 Spacer(Modifier.width(10.dp))
                 Text(
                     BuildConfig.VERSION_NAME,
