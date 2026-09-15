@@ -1,5 +1,10 @@
 # Router MikroTik — konfiguracja pod stację naziemną
 
+> Aktualizacja 2026-09-05: użytkownik zlecił publiczne wejście dla nadawców DJI
+> do Panoramy. Zakres portów i aktualną topologię opisuje
+> [PANORAMA_INTERNET_DJI.md](PANORAMA_INTERNET_DJI.md).
+> Poniższy historyczny zakaz dst-nat nie obejmuje tego nowego wejścia APK (TCP 5601).
+
 Router: **MikroTik, dziś na 192.168.88.1** (domyślna adresacja RouterOS).
 Realizuje **decyzję 5** z [../PLAN.md](../PLAN.md) §10: dostęp zdalny do stacji
 wyłącznie przez **WireGuard na routerze**. Bez Tailscale'a, bez VPS-a.
