@@ -43,9 +43,41 @@ kafelek pulpitu bez `"pokretlo": "wlasne"` + milczenie mostu czytane jako zgoda.
 - żeton w adresie strumienia SSE (EventSource nie umie nagłówków) —
   [DOSTEP_I_UZYTKOWNICY.md §7](DOSTEP_I_UZYTKOWNICY.md).
 
+## Zależności
+
+`npm audit` pokazywał trzy wpisy o średniej wadze i wszystkie prowadziły do jednej
+paczki: **`qs`**, parsera ciągu zapytania, który Express wciąga przez siebie i przez
+`body-parser` ([GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx),
+[GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g)). Obie klasy to
+wyczerpanie zasobów procesu — bez wycieku danych i bez wykonania kodu — ale **do
+parsowania dochodzi przed uwierzytelnieniem**: `wezZeton()` sięga po `req.query.zeton`,
+więc wystarczy dosięgnąć portu 8095 (czyli być w LAN albo w tunelu; 8095 nie jest
+wystawiony do internetu). Na stacji znaczyłoby to przewrócony proces i kilka sekund
+bez obrazu — w locie to nie jest drobiazg.
+
+⛔ **`npm audit fix` był tu bezsilny i mylił.** Nie zmieniał ani jednej paczki:
+`express@4.22.2` i `body-parser@1.20.6` trzymają `qs ~6.15.1`, a w całej linii 6.15.x
+nie ma wydania z łatą — poprawka siedzi dopiero w `qs@6.16.0`. Wyjście mieści się
+w zadeklarowanym `^4.21.2`, więc `package.json` zostaje nietknięty, rusza się sam lock:
+
+```bash
+npm update express body-parser   # 4.22.3 + 1.20.8, oba na qs ~6.16.0
+```
+
+Po tym `npm ci` daje jedną kopię `qs@6.16.0` w drzewie i `found 0 vulnerabilities`.
+
 ## Stan wdrożenia
 
-Na GSB wgrany jest **tylko** kafelek pulpitu z `"pokretlo": "wlasne"` (i przeładowany
-`gcs-pulpit`). Reszta czeka w repozytorium: wgranie wymaga `rpi/wgraj.ps1` z instalatorem,
-a ten restartuje `panorama-gcs` — czyli zabiera obraz widzom. Prawa `0600` dla
-`dostep.json` da się potwierdzić dopiero na malinie: na Windows `chmod` nic nie robi.
+Wszystko wgrane na GSB (`rpi/wgraj.ps1 -Restart`) i sprawdzone na miejscu:
+
+- MediaMTX ma `record: false` na czterech ścieżkach, zgodnie z `archiwum: nie` —
+  wcześniej wymagało to restartu usługi OBRAZ;
+- `/var/lib/panorama/dostep.json` ma prawa `0600` (na Windows `chmod` nic nie robi,
+  więc potwierdzić dało się to dopiero na malinie);
+- sprzątanie przy starcie usunęło 8 żetonów;
+- `express 4.22.3`, `body-parser 1.20.8`, `qs 6.16.0`, `npm audit` czysty;
+- obie usługi wstały bez wyjątku, most pokrętła zestawiony.
+
+⚠ Trzech rzeczy nie da się potwierdzić zdalnie i czekają na próbę przy stanowisku:
+telemetria na kafelku DJI (potrzebny nadający dron), odmowa obrazu ze źródła ukrytego
+dla żetonu widza i samo przejęcie pokrętła z kafelka pulpitu.
