@@ -25,6 +25,7 @@ import {
   pathsForZrodlo,
   writeZrodla,
   validateId,
+  zrodloSciezki,
   MAKS_ZRODEL,
 } from "../scripts/zrodla-lib.mjs";
 import * as mtx from "./mediamtx.mjs";
@@ -46,9 +47,18 @@ const PORT = Number(process.env.PORT) || 8095;
 const WEB_DIST = join(ROOT, "web", "dist");
 // Co ile wysyłamy migawkę stanu do przeglądarek. 10 Hz jak w ARCHITEKTURA.md §3.1.
 const HZ_STANU = Number(process.env.HZ_STANU) || 10;
+// Ile nieodebranych bajtów w gnieździe widza znaczy „nie nadąża". Powyżej tego
+// pomijamy migawkę, zamiast dokładać do kolejki — patrz strumień SSE niżej.
+const PROG_ZALEGLOSCI_B = Number(process.env.PROG_ZALEGLOSCI_B) || 256 * 1024;
 
 const app = express();
-app.set("trust proxy", true);
+// ⛔ ŻADNEGO `trust proxy`. Przed tym serwerem nie stoi pośrednik — chodzi nago na
+// 8095 — więc zaufanie nagłówkowi `X-Forwarded-For` znaczyłoby tylko tyle, że adres
+// klienta podaje... klient. A na adresie stoją trzy decyzje: „to pytanie jest
+// z pętli zwrotnej" w `/api/mtx-auth`, „zamknąć podgląd wolno tylko z ekranu stacji"
+// (`zSamejStacji`) i adresy w dzienniku dostępu. Z włączonym `trust proxy` każdą
+// z nich obchodziło się jednym nagłówkiem.
+app.set("trust proxy", false);
 app.use(express.json());
 
 // ---- zapytania międzyźródłowe (CORS) ----
@@ -258,9 +268,6 @@ app.get("/api/telemetria", (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
-  // Źródło wybiera nie tylko obraz, ale i telemetrię — patrz `telemetriaDla`.
-  const dostawca = telemetriaDla(req.query.zrodlo);
-
   const idPol = obecnosc.dolacz({
     zetonId: kto.id,
     imie: kto.imie,
@@ -273,8 +280,20 @@ app.get("/api/telemetria", (req, res) => {
   // później, na co przełączyła obraz.
   res.write(`event: polaczenie\ndata: ${JSON.stringify({ id: idPol, imie: kto.imie, rola: kto.rola })}\n\n`);
 
+  // ⛔ Dostawcę telemetrii wybieramy PRZY KAŻDEJ MIGAWCE, nie raz przy otwarciu
+  // strumienia. Widz przełącza źródła bez zrywania SSE (zerwanie liczyłoby się jako
+  // wyjście i wejście widza), więc dostawca zamrożony na starcie znaczył jedno:
+  // kafelek drona DJI pokazywał telemetrię DRON 15 albo „BRAK TELEMETRII", a cały
+  // most MQTT był w tej drodze martwy. Bieżące źródło niesie meldunek obecności —
+  // ten sam, którym strona mówi „przełączyłem się na to".
   const timer = setInterval(() => {
-    res.write(`data: ${JSON.stringify(dostawca.stan())}\n\n`);
+    // Wolny klient (telefon na LTE) nie może rosnąć w pamięci serwera: dziesięć
+    // migawek na sekundę wpisywanych szybciej, niż gniazdo je oddaje, zbiera się
+    // w buforze bez końca. Pominięcie jednej nic nie kosztuje — następna leci za
+    // sto milisekund i niesie pełny stan, nie różnicę.
+    if (res.writableLength > PROG_ZALEGLOSCI_B) return;
+    const zrodloTeraz = obecnosc.zrodloPolaczenia(idPol) ?? req.query.zrodlo;
+    res.write(`data: ${JSON.stringify(telemetriaDla(zrodloTeraz).stan())}\n\n`);
   }, Math.round(1000 / HZ_STANU));
 
   let zamkniete = false;
@@ -361,6 +380,25 @@ app.post("/api/mtx-auth", (req, res) => {
 
   const u = dostep.ustawienia();
   if (u.cisza && kto.rola !== "admin") return res.status(401).end();
+
+  // ⛔ Żeton mówi, KIM jesteś — nie otwiera każdej ścieżki, jaka przyjdzie do głowy.
+  // Do 2026-09-22 otwierał: sprawdzaliśmy sam żeton, więc widz, który zgadł albo
+  // podejrzał identyfikator, oglądał źródło UKRYTE — a ukrycie miało znaczyć, że
+  // dron jest zdefiniowany, ale jeszcze nie na pokaz. Identyfikatory powstają
+  // z nazwy, więc zgadywanie nie było trudne.
+  const wpis = zrodloSciezki(readZrodla(), path);
+  if (!wpis) {
+    dostep.zapiszZdarzenie("odmowa", `odmowa obrazu — nieznana ścieżka (${path || "?"})`, { ip: czystyIp(ip) });
+    return res.status(401).end();
+  }
+  // Administrator widzi też ukryte: to on je ukrył i musi sprawdzić, czy nadają.
+  if (!wpis.zrodlo.widoczne && kto.rola !== "admin") {
+    dostep.zapiszZdarzenie("odmowa", `odmowa obrazu — źródło ukryte (${wpis.zrodlo.id})`, {
+      imie: kto.imie,
+      ip: czystyIp(ip),
+    });
+    return res.status(401).end();
+  }
 
   zapamietajAdres(kto.id, czystyIp(ip));
   res.status(200).end();
@@ -681,6 +719,9 @@ app.post("/api/admin/odetnij", wymagaj("admin"), wrap(async (req, res) => {
     const z = dostep.odetnij(id);
     const zerwane = obecnosc.zamknijZeton(id);
     const ubite = await mtx.kickPoAdresie(adresyZetonu.get(id) || []);
+    // Adresy były potrzebne wyłącznie do tego zerwania. Trzymane dalej rosną bez
+    // końca — a odcięty żeton i tak już się nie zgłosi.
+    adresyZetonu.delete(id);
     res.json({ ok: true, imie: z.imie, zerwaneStrumienieDanych: zerwane, ubiteSesjeObrazu: ubite });
   } catch (e) {
     res.status(404).json({ blad: String(e.message || e) });
@@ -733,7 +774,7 @@ app.get("/api/admin/archiwum", wymagaj("admin"), wrap(async (req, res) => {
 }));
 
 app.post("/api/admin/archiwum", wymagaj("admin"), wrap(async (req, res) => {
-  const poprzedniTryb = ustArchiwum.wideo;
+  const poprzednie = ustArchiwum;
   try {
     ustArchiwum = writeArchiwum(req.body || {});
   } catch (e) {
@@ -745,8 +786,15 @@ app.post("/api/admin/archiwum", wymagaj("admin"), wrap(async (req, res) => {
   // Tryb nagrywania obrazu siedzi w konfiguracji ŚCIEŻEK MediaMTX, więc zmiana
   // wymaga ich przepisania. Robimy to na żywo, przez API — restart stacji zabrałby
   // obraz wszystkim widzom po to, żeby zmienić ustawienie zapisu.
+  // ⛔ Warunek obejmuje TAKŻE `wlaczone`. Wcześniej patrzył wyłącznie na tryb wideo
+  // i `trzymajDni`, więc samo odhaczenie archiwum nie przepisywało ścieżek i MediaMTX
+  // nagrywał dalej — przełącznik, który nic nie wyłącza, jest gorszy niż jego brak.
   let sciezek = 0;
-  if (ustArchiwum.wideo !== poprzedniTryb || req.body?.trzymajDni !== undefined) {
+  const zmianaNagrywania =
+    ustArchiwum.wideo !== poprzednie.wideo
+    || ustArchiwum.wlaczone !== poprzednie.wlaczone
+    || req.body?.trzymajDni !== undefined;
+  if (zmianaNagrywania) {
     for (const z of readZrodla()) {
       for (const { name, conf } of pathsForZrodlo(z, ustArchiwum)) {
         try {
@@ -758,7 +806,11 @@ app.post("/api/admin/archiwum", wymagaj("admin"), wrap(async (req, res) => {
     }
     // Plik na dysku też, żeby ustawienie przeżyło restart MediaMTX.
     generateMediamtxYml(readZrodla(), ustArchiwum);
-    dostep.zapiszZdarzenie("archiwum", `nagrywanie obrazu: ${ustArchiwum.wideo}`, { kto: req.kto.imie });
+    dostep.zapiszZdarzenie(
+      "archiwum",
+      `nagrywanie obrazu: ${ustArchiwum.wlaczone ? ustArchiwum.wideo : "archiwum wyłączone"}`,
+      { kto: req.kto.imie },
+    );
   }
 
   res.json({ ustawienia: ustArchiwum, przestawionychSciezek: sciezek });
@@ -813,7 +865,10 @@ app.post("/api/pokretlo/oddaj", (req, res) => {
   const kto = rozpoznaj(req);
   if (!kto) return res.status(401).json({ blad: "Potrzebne zaproszenie." });
   // Wolno tylko temu, kto pokrętło trzyma — inaczej dowolny widz odbierałby je stacji.
-  if (pokretlo.trzymajacy?.imie !== kto.imie) {
+  // ⛔ Po ŻETONIE, nie po imieniu: imię nie jest niczyją własnością. Zaproszenie
+  // wielokrotne („monitory stacji") bywa użyte na kilku urządzeniach i wtedy jedno
+  // odbierało pokrętło drugiemu, choć każde miało własny żeton i własny strumień.
+  if (pokretlo.trzymajacy?.zetonId !== kto.id) {
     return res.status(409).json({ blad: "Pokrętła nie trzyma ta przeglądarka." });
   }
   const poszlo = pokretlo.przekazDalej();
@@ -825,7 +880,7 @@ app.get("/api/pokretlo", (req, res) => {
   const kto = rozpoznaj(req);
   if (!kto) return res.status(401).json({ blad: "Potrzebne zaproszenie." });
 
-  if (pokretlo.trzymajacy && pokretlo.trzymajacy.imie !== kto.imie) {
+  if (pokretlo.trzymajacy && pokretlo.trzymajacy.zetonId !== kto.id) {
     return res.status(409).json({
       blad: `Pokrętło trzyma już ${pokretlo.trzymajacy.imie}.`,
       trzyma: pokretlo.trzymajacy.imie,
@@ -839,8 +894,26 @@ app.get("/api/pokretlo", (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
+  // Ta sama przeglądarka wraca (odświeżenie strony, wznowienie EventSource): stary
+  // strumień bywa jeszcze otwarty i bez tego wisiałby do końca życia procesu, a jego
+  // późniejsze zamknięcie oddawałoby pokrętło panelowi w środku pracy operatora.
+  // Zamknięcie jest przed przypisaniem nowego właściciela — wtedy `koniec()` starego
+  // strumienia rozpozna po `wyslij`, że pokrętła już nie trzyma, i niczego nie odda.
+  pokretlo.trzymajacy?.zakoncz?.();
+
   const wyslij = (w) => res.write(`data: ${JSON.stringify(w)}\n\n`);
-  pokretlo.trzymajacy = { imie: kto.imie, wyslij };
+  pokretlo.trzymajacy = {
+    zetonId: kto.id,
+    imie: kto.imie,
+    wyslij,
+    zakoncz: () => {
+      try {
+        res.end();
+      } catch {
+        /* i tak porzucamy uchwyt */
+      }
+    },
+  };
   pokretlo.wezOgnisko();
   wyslij({ typ: "powitanie", ...pokretlo.stan() });
   rejestr.info("pokretlo", `${kto.imie} bierze pokrętło`);
@@ -1000,6 +1073,11 @@ async function start() {
   const zrodla = readZrodla();
   generateMediamtxYml(zrodla, ustArchiwum);
 
+  const usunieteZetony = dostep.sprzatajZetony();
+  if (usunieteZetony) {
+    rejestr.info("dostep", `sprzątanie żetonów: usunięto ${usunieteZetony} (odcięte i nieużywane)`);
+  }
+
   const pierwszeZaproszenie = dostep.zapewnijAdmina();
   if (pierwszeZaproszenie) {
     console.log("");
@@ -1019,6 +1097,11 @@ async function start() {
   pokretlo.on("zdarzenie", (z) => pokretlo.trzymajacy?.wyslij(z));
   pokretlo.on("polaczenie", (jest) => {
     pokretlo.trzymajacy?.wyslij({ typ: "most", polaczony: jest });
+    // ⛔ Most wrócił, a strona nadal trzyma pokrętło — trzeba je wziąć NA NOWO.
+    // Po restarcie panelu ognisko zaczyna przy nim, a potem pulpit bierze je dla
+    // siebie (robi to, gdy zostaje sam na ekranie). Bez tej prośby strona zostawała
+    // głucha do następnego kliknięcia w klawisz POKRĘTŁO, a obroty szły do pulpitu.
+    if (jest && pokretlo.trzymajacy) pokretlo.wezOgnisko();
     // Okrągły ekran ma pokazywać prawdę o nagrywaniu, a nie własne domysły.
     if (jest) meldujPanelowi();
   });

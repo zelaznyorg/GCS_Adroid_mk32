@@ -36,6 +36,11 @@ import * as rejestr from "./rejestr.mjs";
 const CISZA_KONIEC_S = Number(process.env.ARCHIWUM_CISZA_S) || 60;
 // Co ile sprawdzamy miejsce na dysku.
 const SPRZATANIE_MS = Number(process.env.ARCHIWUM_SPRZATANIE_MS) || 15 * 60 * 1000;
+// Jak długo spis nagrań jest „wystarczająco świeży". Panel admina odpytuje o stan
+// co kilka sekund, a każdy taki odczyt to przejście całego drzewa archiwum ze
+// `statSync` na każdym pliku — przy nagraniach ciętych na dziesięciominutowe odcinki
+// są ich tysiące, a na malinie z kartą to nie jest odczyt darmowy.
+const SPIS_WAZNY_MS = Number(process.env.ARCHIWUM_SPIS_MS) || 10000;
 
 function zapewnij(sciezka) {
   try {
@@ -95,6 +100,8 @@ export class Archiwum {
     this.timerSprzatania = null;
     this.timerZamkniecia = null;
     this.ostatnieSprzatanie = null;
+    this.spis = null;
+    this.spisWaznyDo = 0;
   }
 
   // Ustawienia przychodzą już znormalizowane z readArchiwum() — tu tylko je
@@ -110,6 +117,12 @@ export class Archiwum {
   }
 
   start() {
+    // ⛔ start() woła TAKŻE panel — po każdym zapisie ustawień archiwum (index.mjs).
+    // Bez tego każdy zapis dokładał kolejny zegar sprzątania, a uchwyt do poprzedniego
+    // przepadał: po pięciu kliknięciach archiwum sprzątało pięć razy na kwadrans
+    // i nie dało się tego już zatrzymać inaczej niż restartem usługi.
+    if (this.timerSprzatania) clearInterval(this.timerSprzatania);
+    this.timerSprzatania = null;
     if (!this.wlaczone) {
       rejestr.info("archiwum", "wyłączone w konfiguracji — nic nie zapisuję");
       return;
@@ -188,6 +201,7 @@ export class Archiwum {
       return false;
     }
     this.plikBiezacy = sciezka;
+    this.zapomnijSpis();
     this.ramekWPliku = 0;
     this.bajtowWPliku = 0;
     rejestr.info("archiwum", `nagrywam telemetrię do ${nazwa}`);
@@ -231,11 +245,28 @@ export class Archiwum {
 
   // ---- miejsce na dysku ----
 
-  pliki() {
-    return [
+  /** Zapomina spis — po każdej zmianie w katalogu, żeby panel nie pokazywał duchów. */
+  zapomnijSpis() {
+    this.spis = null;
+    this.spisWaznyDo = 0;
+  }
+
+  /**
+   * Wszystkie nagrania, od najstarszego. Wynik trzymamy przez chwilę (SPIS_WAZNY_MS),
+   * bo panel pyta o stan co kilka sekund, a katalog zmienia się rzadko.
+   *
+   * ⚠ Sprzątanie bierze spis ŚWIEŻY: kasowanie po nieaktualnej liście znaczyłoby
+   * liczenie miejsca odzyskanego z plików, których już nie ma.
+   */
+  pliki({ swiezo = false } = {}) {
+    const teraz = Date.now();
+    if (!swiezo && this.spis && teraz < this.spisWaznyDo) return this.spis;
+    this.spis = [
       ...plikiRekurencyjnie(this.katalogTlog, "tlog"),
       ...plikiRekurencyjnie(this.katalogWideo, "wideo"),
     ].sort((a, b) => a.czas - b.czas);
+    this.spisWaznyDo = teraz + SPIS_WAZNY_MS;
+    return this.spis;
   }
 
   /**
@@ -250,7 +281,7 @@ export class Archiwum {
 
     const granicaCzasu = Date.now() - this.trzymajDni * 24 * 3600 * 1000;
     const limitBajtow = this.limitGb * 1024 * 1024 * 1024;
-    const pliki = this.pliki().filter((p) => p.sciezka !== this.plikBiezacy);
+    const pliki = this.pliki({ swiezo: true }).filter((p) => p.sciezka !== this.plikBiezacy);
     let skasowane = 0;
     let odzyskane = 0;
 
@@ -284,6 +315,7 @@ export class Archiwum {
         `sprzątanie: skasowano ${skasowane} plików, ${(odzyskane / 1e6).toFixed(0)} MB`
       );
     }
+    if (skasowane) this.zapomnijSpis();
     this.ostatnieSprzatanie = Date.now();
     return { skasowane, odzyskane, zajete: suma };
   }

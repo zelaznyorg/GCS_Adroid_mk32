@@ -36,6 +36,12 @@ export function useWhep(bazaWhep, idStrumienia, videoRef) {
   const timerKlatki = useRef(null);
 
   useEffect(() => {
+    // ⛔ Brak identyfikatora znaczy „nie ma czego grać" — tak jest w mozaice, gdzie
+    // obraz mają kafelki, każdy z własnym połączeniem. Wcześniej szła tu wymyślona
+    // ścieżka „brak": MediaMTX odmawiał, hook ponawiał co trzy sekundy i robił to
+    // przez cały czas wyświetlania mozaiki, zaśmiecając dziennik stacji.
+    if (!idStrumienia) return undefined;
+
     let przerwane = false;
     let timerPonowienia = null;
     let klient = null;

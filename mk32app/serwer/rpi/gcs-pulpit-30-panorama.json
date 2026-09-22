@@ -9,6 +9,7 @@
     "usluga": "panorama-gcs"
   },
   "pelny-ekran": true,
+  "pokretlo": "wlasne",
   "ikona": "video-display-symbolic",
   "okno": "chrome-"
 }

@@ -196,7 +196,7 @@ export default function App() {
   // W mozaice pełnoekranowy odtwarzacz nie ma czego grać — kafelki mają własne
   // połączenia. Pusty identyfikator zamiast prawdziwego, żeby nie ciągnąć strumienia
   // po nic (dla ZR30 to łącze radiowe).
-  const stanObrazu = useWhep(adresWhep(), pokazMozaike ? "brak" : idStrumienia ?? "brak", videoRef);
+  const stanObrazu = useWhep(adresWhep(), pokazMozaike ? null : idStrumienia, videoRef);
   const zywy = stanObrazu === "zywo";
 
   // Telefon w terenie: ekran ma nie gasnąć, dopóki jest co oglądać, i ma dać się
@@ -255,6 +255,10 @@ export default function App() {
   // wtedy pustą ręką i nigdy nie ponawiał — strona pokazywała "BRAK", choć
   // most żył i pokrętło było wolne. Zmierzone na stacji 2026-08-29.
   const pokretlo = usePokretlo({ wlaczone: chcePokretla, zetonWidza });
+  // ⛔ Sam otwarty strumień to za mało. Pokrętło steruje tą stroną dopiero wtedy,
+  // gdy most oddał jej ognisko — inaczej obroty idą do pulpitu, a klawisz świecący
+  // POKRĘTŁO kłamie (zmierzone na GSB 2026-09-22).
+  const steruje = pokretlo.polaczone && pokretlo.mamy;
   // Klawisze pilota pulpitu GCS (`↑ ↓ ← →`, ENTER, TAB, ESC) działają ZAWSZE,
   // także wtedy, gdy strona nie trzyma pokrętła — to droga odwrotu, gdy most
   // jest zajęty albo panel wziął ognisko dla siebie. Opis: dok/POKRETLO.md §8.
@@ -478,19 +482,19 @@ export default function App() {
                 zgadywanie po adresie przeglądarki. */}
             <button
               type="button"
-              className={`klawisz ${chcePokretla ? "wlaczony" : ""} ${chcePokretla && !pokretlo.polaczone ? "pilne" : ""}`}
+              className={`klawisz ${chcePokretla ? "wlaczony" : ""} ${chcePokretla && !steruje ? "pilne" : ""}`}
               onClick={przelaczPokretlo}
               {...{ [BEZ_POKRETLA]: "tak" }}
               title={
                 !chcePokretla
                   ? "Steruj stroną pokrętłem stacji (obrót przechodzi, klik naciska, przytrzymanie cofa)"
-                  : pokretlo.polaczone
+                  : steruje
                     ? "Pokrętło stacji steruje tą stroną — kliknij, żeby oddać"
                     : pokretlo.blad || "Pokrętło niedostępne"
               }
             >
               <IkonaPokretlo />
-              <span className="klawisz-podpis">{chcePokretla ? (pokretlo.polaczone ? "POKRĘTŁO" : "BRAK") : "POKRĘTŁO"}</span>
+              <span className="klawisz-podpis">{chcePokretla ? (steruje ? "POKRĘTŁO" : "BRAK") : "POKRĘTŁO"}</span>
             </button>
 
             <button

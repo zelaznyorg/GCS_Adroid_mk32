@@ -102,6 +102,31 @@ PY
   install -m 0644 /tmp/30-panorama.json /etc/gcs/aplikacje.d/30-panorama.json
   rm -f /tmp/30-panorama.json /etc/gcs/aplikacje.d/30-dron15.json
 fi
+# ⛔ Kafelek MUSI nieść "pokretlo": "wlasne". Bez tego pulpit nie wchodzi w gałąź
+# dla aplikacji obsługujących pokrętło samodzielnie: nie woła `ustepuje()`, zostaje
+# właścicielem pokrętła i most odmawia Panoramie. W dzienniku panelu widać to wprost
+# (GSB 2026-09-22): „klient-2 prosi o pokrętło zajęte przez pulpit — odmawiam".
+# Objaw przy stanowisku: operator kręci w Panoramie, a przykryty pulpit przesuwa
+# kafelki i uruchamia programy. Krok jest idempotentny i naprawia także kafelek
+# zainstalowany wcześniej — dlatego osobno od przenosin wyżej.
+if [ -f /etc/gcs/aplikacje.d/30-panorama.json ]; then
+  if python3 - /etc/gcs/aplikacje.d/30-panorama.json <<'PY'
+import json, sys
+
+sciezka = sys.argv[1]
+with open(sciezka, encoding="utf-8") as plik:
+    kafelek = json.load(plik)
+if kafelek.get("pokretlo") == "wlasne":
+    sys.exit(1)
+kafelek["pokretlo"] = "wlasne"
+with open(sciezka, "w", encoding="utf-8") as plik:
+    json.dump(kafelek, plik, ensure_ascii=False, indent=2)
+    plik.write("\n")
+PY
+  then
+    powiedz 'kafelek pulpitu: dopisane "pokretlo": "wlasne" — zrestartuj gcs-pulpit'
+  fi
+fi
 if grep -q "KOD-ZAPROSZENIA-ADMINA" /etc/gcs/aplikacje.d/30-panorama.json 2>/dev/null; then
   echo "UWAGA: kafelek 30-panorama.json ma napis KOD-ZAPROSZENIA-ADMINA zamiast kodu —"
   echo "       wpisz kod zaproszenia admina (panel ADMIN → ZAPROSZENIA) w /etc/gcs/aplikacje.d/30-panorama.json"

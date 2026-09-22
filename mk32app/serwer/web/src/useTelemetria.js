@@ -37,6 +37,15 @@ export function useTelemetria(zrodlo, stacja, zetonWidza) {
   const [dane, setDane] = useState({ stacja: null, stan: null, polaczony: false });
   const [odciety, setOdciety] = useState(false);
   const idPolaczenia = useRef(null);
+  // Źródło w REFERENCJI, nie w zależnościach efektu: adres strumienia ma nieść to,
+  // na co widz patrzy w chwili łączenia, ale późniejsza zmiana źródła nie może
+  // zestawiać SSE od nowa (to liczyłoby się jako wyjście i wejście widza).
+  // Przełączenie w trakcie melduje się serwerowi przez `/api/obecnosc` niżej,
+  // a on wybiera dostawcę telemetrii przy każdej migawce.
+  const zrodloTeraz = useRef(zrodlo);
+  useEffect(() => {
+    zrodloTeraz.current = zrodlo;
+  }, [zrodlo]);
 
   // Zmiana STRUMIENIA nie może zrywać telemetrii — zerwanie i zestawienie na nowo
   // liczyłoby się jako wyjście i wejście widza. Zmiana STACJI albo ŻETONU musi,
@@ -46,7 +55,7 @@ export function useTelemetria(zrodlo, stacja, zetonWidza) {
     // w pętlę ponawiania, której sam nie umie przerwać.
     if (!zetonWidza) return undefined;
 
-    const es = new EventSource(adresTelemetrii());
+    const es = new EventSource(adresTelemetrii(zrodloTeraz.current));
     const oznacz = (zmiany) => setDane((d) => ({ ...d, stacja, ...zmiany }));
 
     es.onopen = () => oznacz({ polaczony: true });

@@ -19,6 +19,12 @@ class Gniazdo extends EventEmitter {
     // Tak jak net.Socket: close przychodzi po destroy, nie w jego stosie.
     queueMicrotask(() => this.emit("close"));
   }
+  // net.Socket.end(dane) odsyła ostatnią linię i zamyka — odbiornik mówi tak
+  // aparaturze „złe hasło" albo „zajęte", zamiast milczkiem zrywać połączenie.
+  end(dane) {
+    if (dane) this.odeslane = String(dane);
+    this.destroy();
+  }
   wyslij(dane) { this.emit("data", Buffer.from(dane)); }
 }
 

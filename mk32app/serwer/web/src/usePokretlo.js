@@ -40,8 +40,21 @@ const PRZYTRZYMANIE_MS = 600;
  */
 const PRZEJECIE_PANELU_MS = 2000;
 
+/**
+ * Co powiedzieć, gdy strumień pokrętła żyje, ale pokrętła NIE MAMY.
+ *
+ * ⛔ Most oddaje zdarzenia wyłącznie właścicielowi i odmawia bez słowa, gdy trzyma
+ * je kto inny. Do 2026-09-22 wyglądało to na stacji tak: klawisz świecił POKRĘTŁO,
+ * a obrót przesuwał kafelki PULPITU pod spodem i uruchamiał programy. Operator nie
+ * miał jak się domyślić, że steruje czymś innym, niż patrzy.
+ */
+const ZAJETE_PRZEZ_PULPIT = "Pokrętło trzyma pulpit — oddaje je jego kafelek STERUJ.";
+const ZABRANE_PRZEZ_PULPIT = "Pokrętło przejął pulpit — odzyskasz je kafelkiem STERUJ.";
+
 export function usePokretlo({ wlaczone = true, zetonWidza = null } = {}) {
   const [polaczone, setPolaczone] = useState(false);
+  // Osobno od `polaczone`: strumień bywa zdrowy, a pokrętło i tak jest u pulpitu.
+  const [mamy, setMamy] = useState(false);
   const [blad, setBlad] = useState(null);
   const [wRegulacji, setWRegulacji] = useState(null); // "lista" | "liczba" | "tekst" | null
   const wcisnietyOd = useRef(0);
@@ -158,8 +171,26 @@ export function usePokretlo({ wlaczone = true, zetonWidza = null } = {}) {
       } catch {
         return;
       }
-      if (w.typ === "powitanie" || w.typ === "most") {
-        setBlad(null);
+      // Powitanie zastaje staranie o ognisko w toku (serwer czeka na potwierdzenie
+      // mostu), więc `mamy: false` nie jest tu jeszcze złą wiadomością i nie
+      // pokazujemy jej operatorowi — rozstrzygnie dopiero zdarzenie `ognisko`.
+      if (w.typ === "powitanie") {
+        setMamy(Boolean(w.mamy));
+        if (w.mamy) setBlad(null);
+        return;
+      }
+      if (w.typ === "most") {
+        if (!w.polaczony) {
+          setMamy(false);
+          setBlad("Most pokrętła zerwany — panel stacji nie odpowiada.");
+        }
+        return;
+      }
+      // Kto ma pokrętło. Jedyna wiadomość, która mówi o tym prawdę — patrz
+      // `wezOgnisko` w server/pokretlo.mjs.
+      if (w.typ === "ognisko") {
+        setMamy(Boolean(w.mamy));
+        setBlad(w.mamy ? null : w.odmowa ? ZAJETE_PRZEZ_PULPIT : ZABRANE_PRZEZ_PULPIT);
         return;
       }
       if (w.typ === "obrot") {
@@ -205,11 +236,12 @@ export function usePokretlo({ wlaczone = true, zetonWidza = null } = {}) {
       zywe = false;
       zrodlo.close();
       setPolaczone(false);
+      setMamy(false);
       // Oddane pokrętło nie może zostawić po sobie obwódki sugerującej, że
       // czymś jeszcze steruje.
       oznaczOgnisko(null);
     };
   }, [wlaczone, zetonWidza, przesun, zmienWartosc, nacisnij, cofnij]);
 
-  return { polaczone, blad, wRegulacji };
+  return { polaczone, mamy, blad, wRegulacji };
 }

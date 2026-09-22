@@ -26,6 +26,15 @@ export function odlacz(id) {
   polaczenia.delete(id);
 }
 
+/**
+ * Na co patrzy to połączenie w tej chwili. Wyborem źródła rządzi widz, a od niego
+ * zależy nie tylko obraz, ale i DOSTAWCA TELEMETRII (MAVLink z DRON 15 albo Cloud
+ * API z drona DJI) — dlatego strumień stanu pyta o to przy każdej migawce.
+ */
+export function zrodloPolaczenia(id) {
+  return polaczenia.get(id)?.zrodlo ?? null;
+}
+
 export function ustawZrodlo(id, zrodlo) {
   const w = polaczenia.get(id);
   if (!w) return false;

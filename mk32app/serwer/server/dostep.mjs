@@ -9,7 +9,7 @@
 // Stan trzymamy w jednym pliku JSON. Przy pięciu osobach baza danych byłaby pracą
 // bez pokrycia, a plik da się obejrzeć i poprawić edytorem w terenie.
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, renameSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR } from "../scripts/zrodla-lib.mjs";
 import * as rejestr from "./rejestr.mjs";
@@ -17,6 +17,16 @@ import * as rejestr from "./rejestr.mjs";
 const PLIK = join(DATA_DIR, "dostep.json");
 const ROLE = ["widz", "operator", "admin"];
 const DZIENNIK_MAX = 500;
+// Po tylu dniach odcięty żeton znika z pliku. Odcięcie działa natychmiast i jest
+// nieodwracalne, więc wpis służy już tylko do zajrzenia wstecz — a kto i kiedy
+// został odcięty, pamięta dziennik.
+const ODCIETY_TRZYMAJ_DNI = 7;
+// Żeton nieużywany od tylu dni. Zaproszenia wydaje się na jeden wyjazd, a lista
+// rosła bez końca: każde wejście zakładało nowy wpis i nic ich nie kasowało.
+const NIEUZYWANY_TRZYMAJ_DNI = 90;
+// Jak często zapisujemy na dysk sam fakt „ten żeton był widziany". Przy każdym
+// wywołaniu API byłby to zapis pliku kilka razy na sekundę.
+const ZAPIS_WIDZIANYCH_MS = 60000;
 
 const USTAWIENIA_DOMYSLNE = {
   limitWidzow: 6,       // każdy widz to osobny strumień — pasmo jest skończone
@@ -32,6 +42,7 @@ function pusty() {
 }
 
 let stan = null;
+let ostatniZapisWidzianych = 0;
 
 function wczytaj() {
   if (stan) return stan;
@@ -61,8 +72,19 @@ function zapisz() {
   s.dziennik = s.dziennik.slice(-DZIENNIK_MAX);
   // Zapis przez plik tymczasowy: przerwane zasilanie RPi nie zostawi obciętego JSON-a.
   const tmp = `${PLIK}.tmp`;
-  writeFileSync(tmp, JSON.stringify(s, null, 2) + "\n", "utf8");
+  // ⛔ 0600. W tym pliku leżą SEKRETY ŻETONÓW i kody zaproszeń — czyli wszystko,
+  // czym legitymuje się widz. Reszta sekretów stacji (`nadawanie.json`, `dji.json`)
+  // miała ten tryb od początku, a akurat ten plik zapisywał się z domyślnym 0644:
+  // każde konto na malinie czytało cudze żetony.
+  writeFileSync(tmp, JSON.stringify(s, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
   renameSync(tmp, PLIK);
+  try {
+    // Plik założony przed tą poprawką ma prawa po staremu — rename przenosi prawa
+    // pliku tymczasowego, ale tylko wtedy, gdy zastępuje go nowym i-węzłem.
+    chmodSync(PLIK, 0o600);
+  } catch {
+    /* prawa to nie warunek działania podglądu */
+  }
 }
 
 // ---- dziennik ----
@@ -200,7 +222,35 @@ export function sprawdzZeton(pelny) {
   const z = wczytaj().zetony.find((x) => x.id === id);
   if (!z || z.odciety || !rowne(z.sekret, sekret)) return null;
   z.ostatnioWidziany = teraz();
+  // Zapis rzadki, ale MUSI być: bez niego „ostatnio widziany" w panelu pokazywał
+  // po restarcie czas założenia żetonu, a sprzątanie nieużywanych nie miało się
+  // na czym oprzeć.
+  if (z.ostatnioWidziany - ostatniZapisWidzianych > ZAPIS_WIDZIANYCH_MS) {
+    ostatniZapisWidzianych = z.ostatnioWidziany;
+    zapisz();
+  }
   return z;
+}
+
+/**
+ * Kasuje żetony, po których nic już nie zostało: odcięte sprzed tygodnia
+ * i nieużywane od kwartału. Wołane raz, przy starcie serwera.
+ *
+ * ⚠ Nie rusza żetonów ŻYWYCH, choćby było ich dużo — odebranie komuś wstępu
+ * w środku lotu jest gorsze niż długa lista w pliku.
+ */
+export function sprzatajZetony() {
+  const s = wczytaj();
+  const t = teraz();
+  const przed = s.zetony.length;
+  s.zetony = s.zetony.filter((z) => {
+    const wiek = t - (z.ostatnioWidziany || z.utworzono || t);
+    if (z.odciety) return wiek < ODCIETY_TRZYMAJ_DNI * 86400000;
+    return wiek < NIEUZYWANY_TRZYMAJ_DNI * 86400000;
+  });
+  const usuniete = przed - s.zetony.length;
+  if (usuniete) zapisz();
+  return usuniete;
 }
 
 export function zetony() {

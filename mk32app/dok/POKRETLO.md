@@ -130,6 +130,44 @@ którzy go nie dotykają. Drugi chętny dostaje `409` z imieniem tego, kto trzym
 > kartę — oddaje ognisko panelowi jawnie. Ich most robi to samo, gdy odejdzie
 > ostatni klient. Dwie niezależne siatki na ten sam upadek.
 
+> ### ⛔ Most ODMAWIA BEZ SŁOWA — i kafelek musi to wiedzieć (2026-09-22)
+>
+> Prośby o pokrętło zajęte przez kogo innego most nie spełnia i **nie odpowiada
+> na nią niczym**. Do 2026-09-22 serwer czytał to milczenie jako zgodę: ustawiał
+> `trzymajacy`, strona zapalała `POKRĘTŁO`, a zdarzenia szły do właściciela —
+> pulpitu. Objaw przy stanowisku: **operator kręci w Panoramie, a przykryty pulpit
+> przesuwa kafelki i uruchamia programy.**
+>
+> Przyczyną była jedna brakująca linia w kafelku `/etc/gcs/aplikacje.d/30-panorama.json`:
+>
+> ```json
+> "pokretlo": "wlasne"
+> ```
+>
+> Bez niej `gcs_pulpit/okno.py` nie wchodzi w gałąź dla aplikacji obsługujących
+> pokrętło samodzielnie — a to ona woła `ustepuje()`, czyli jednorazową zgodę
+> pulpitu na oddanie pokrętła pierwszemu chętnemu. Pulpit zostawał właścicielem,
+> a my dostawaliśmy odmowę. W dzienniku panelu widać ją wprost:
+>
+> ```bash
+> journalctl -u pi5-control-panel --since today | grep -i 'ognisk\|odmawiam'
+> # Ognisko pokrętła: pulpit
+> # klient-2 prosi o pokrętło zajęte przez pulpit — odmawiam
+> ```
+>
+> Poprawione po obu stronach:
+>
+> - **wzorzec kafelka** (`rpi/gcs-pulpit-30-panorama.json`) niesie `"pokretlo": "wlasne"`,
+>   a `rpi/instaluj.sh` dopisuje ten klucz także do kafelka zainstalowanego wcześniej
+>   (krok idempotentny — stary kafelek nie przechodzi przez przenosiny z `30-dron15.json`);
+> - **serwer** (`server/pokretlo.mjs`) czeka na potwierdzenie `{"typ":"ognisko","gdzie":"pulpit"}`,
+>   ponawia prośbę dwa razy (pulpit ustępuje jednorazowo, więc prośba wysłana ułamek
+>   sekundy za wcześnie przepada) i dopiero potem melduje stronie odmowę. Prosi też
+>   **na nowo po powrocie mostu** — po restarcie panelu ognisko zaczyna przy nim;
+> - **strona** (`usePokretlo.js`) rozróżnia „strumień żyje" od „pokrętło jest u nas":
+>   klawisz świeci `POKRĘTŁO` dopiero przy potwierdzonym ognisku, inaczej pokazuje
+>   `BRAK` i mówi, że pokrętło trzyma pulpit, a oddaje je jego kafelek `STERUJ`.
+
 ---
 
 ## 4. ⛔ Dlaczego nie polegamy na `:focus`

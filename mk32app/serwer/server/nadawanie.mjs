@@ -34,9 +34,13 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { readZrodla } from "../scripts/zrodla-lib.mjs";
+// ⛔ DATA_DIR bierzemy STĄD, nie z własnego `process.env.DATA_DIR || "."`. Domyślne
+// „." znaczyło katalog roboczy procesu, a reszta stacji liczy je od katalogu kodu
+// (zrodla-lib.mjs). W usłudze systemd oba wychodzą na to samo, bo DATA_DIR jest
+// ustawione — ale przy ręcznym uruchomieniu spoza `serwer/` hasła nadawania lądowały
+// w innym katalogu niż żetony i po restarcie po prostu ich nie było.
+import { readZrodla, DATA_DIR } from "../scripts/zrodla-lib.mjs";
 
-const DATA_DIR = process.env.DATA_DIR || ".";
 const PLIK_KLUCZA = join(DATA_DIR, "nadawanie.txt");
 const PLIK_HASEL = join(DATA_DIR, "nadawanie.json");
 

@@ -260,6 +260,14 @@ export function mtxPathConf(source, opcje = {}) {
     sourceOnDemand: !opcje.ciagle,
     sourceOnDemandCloseAfter: "30s",
     rtspTransport: "tcp",
+    // ⛔ `record: false` MUSI tu być, choć wygląda na zbędne. Ścieżki dosyłamy do
+    // MediaMTX metodą PATCH, czyli SCALENIEM: klucz pominięty zostaje po staremu.
+    // Gdy nagrywanie było włączone, a operator je wyłączył, ścieżka bez tego klucza
+    // nadal miała `record: yes` i MediaMTX pisał na kartę dalej — panel mówił „nie
+    // nagrywam", a plik rósł do restartu usługi OBRAZ (wtedy czytany jest świeży
+    // mediamtx.yml, w którym klucza po prostu nie ma). Źródła nadawane miały to
+    // zrobione od początku; pobierane — nie.
+    record: false,
   };
   if (opcje.nagrywaj) dopiszNagrywanie(conf, opcje);
   return conf;
@@ -287,6 +295,26 @@ export function pathsForZrodlo(z, archiwum = null) {
   const out = [{ name: z.id, conf: mtxPathConf(z.rtspGlowny, { ...opcje, nadawany }) }];
   if (z.rtspPomocniczy) out.push({ name: `${z.id}_pom`, conf: mtxPathConf(z.rtspPomocniczy) });
   return out;
+}
+
+/**
+ * Źródło stojące za ścieżką MediaMTX — razem z tym, czy to strumień pomocniczy.
+ *
+ * Potrzebne przy wpuszczaniu widza na obraz (`/api/mtx-auth`): ścieżka przychodzi
+ * z MediaMTX jako goły tekst, a decyzja zależy od źródła, do którego należy —
+ * przede wszystkim od tego, czy jest WIDOCZNE. `null` znaczy, że takiej ścieżki
+ * nie ma w konfiguracji i nikomu nic się z niej nie należy.
+ */
+export function zrodloSciezki(zrodla, sciezka) {
+  const nazwa = String(sciezka || "");
+  if (!nazwa) return null;
+  const pomocniczy = nazwa.endsWith("_pom");
+  const id = pomocniczy ? nazwa.slice(0, -4) : nazwa;
+  const z = zrodla.find((x) => x.id === id);
+  if (!z) return null;
+  // Ścieżka pomocnicza istnieje tylko wtedy, gdy źródło ma drugi adres.
+  if (pomocniczy && !z.rtspPomocniczy) return null;
+  return { zrodlo: z, pomocniczy };
 }
 
 export function allPaths(zrodla, archiwum = null) {

@@ -46,6 +46,32 @@ import * as rejestr from "./rejestr.mjs";
 export const GNIAZDO = process.env.GCS_GNIAZDO_POKRETLA || "/run/gcs/pokretlo.sock";
 const PONOWIENIE_MS = 3000;
 
+/**
+ * Ile czekamy na potwierdzenie, że most oddał nam pokrętło.
+ *
+ * ⛔ Most ODMAWIA bez słowa. Prośbę o ognisko odrzuca, gdy pokrętło trzyma ktoś
+ * inny (zwykle pulpit), i nie odsyła przy tym niczego — jedyny ślad zostaje
+ * w dzienniku panelu: „klient-2 prosi o pokrętło zajęte przez pulpit — odmawiam"
+ * (GSB 2026-09-22). Bez tego licznika serwer meldował stronie przejęcie, którego
+ * nie było: wskaźnik świecił POKRĘTŁO, a obroty szły do przykrytego pulpitu, który
+ * przesuwał kafelki i uruchamiał programy.
+ *
+ * Potwierdzeniem jest wiadomość `{"typ":"ognisko","gdzie":"pulpit"}` — most wysyła
+ * ją przy każdej zmianie właściciela, każdemu klientowi jego własną prawdę.
+ */
+const POTWIERDZENIE_MS = Number(process.env.POKRETLO_POTWIERDZENIE_MS) || 400;
+/**
+ * Ile razy ponowimy prośbę, zanim powiemy operatorowi, że pokrętła nie dostaliśmy.
+ * Pulpit ustępuje je JEDNORAZOWO, w chwili uruchamiania aplikacji z kafelka, więc
+ * prośba wysłana ułamek sekundy za wcześnie przepada — i to ponowienie ją ratuje.
+ * Po wyczerpaniu prób milkniemy: każda kolejna to wpis w dzienniku panelu.
+ */
+const PONOWIEN_PROSBY = 2;
+const ODSTEP_PROSBY_MS = Number(process.env.POKRETLO_ODSTEP_MS) || 1500;
+
+const PANEL = "panel";
+const PULPIT = "pulpit";
+
 export class Pokretlo extends EventEmitter {
   constructor(sciezka = GNIAZDO) {
     super();
@@ -55,6 +81,8 @@ export class Pokretlo extends EventEmitter {
     this.polaczone = false;
     this.ognisko = "panel";
     this.timerPonowienia = null;
+    // Trwające staranie o ognisko: czekanie na potwierdzenie albo odstęp przed ponowieniem.
+    this.staranie = null;
     this.zdarzen = 0;
     /**
      * Kto trzyma pokrętło. Pokrętło jest JEDNO i fizycznie stoi przy stacji, więc
@@ -71,6 +99,7 @@ export class Pokretlo extends EventEmitter {
   stop() {
     if (this.timerPonowienia) clearTimeout(this.timerPonowienia);
     this.timerPonowienia = null;
+    this.przerwijStaranie();
     this.oddajOgnisko();
     this.gniazdo?.destroy();
     this.gniazdo = null;
@@ -139,7 +168,12 @@ export class Pokretlo extends EventEmitter {
     if (w.typ === "ognisko") {
       this.ognisko = w.gdzie;
       rejestr.info("pokretlo", `ognisko: ${w.gdzie}`);
-      this.emit("zdarzenie", { typ: "ognisko", gdzie: w.gdzie });
+      // Dostaliśmy, o co prosiliśmy — nie ma po co ponawiać.
+      if (w.gdzie === PULPIT) this.przerwijStaranie();
+      // `mamy` mówi stronie wprost, czy pokrętło jest U NAS. Samo `gdzie` tego nie
+      // niesie czytelnie: most nazywa klienta z pokrętłem „pulpitem", a to słowo
+      // w tym projekcie znaczy też sąsiednią aplikację.
+      this.emit("zdarzenie", { typ: "ognisko", gdzie: w.gdzie, mamy: w.gdzie === PULPIT });
       return;
     }
     this.zdarzen += 1;
@@ -157,9 +191,44 @@ export class Pokretlo extends EventEmitter {
     }
   }
 
-  /** Prosi panel o oddanie pokrętła stronie. */
-  wezOgnisko() {
-    return this.wyslij({ cmd: "ognisko", gdzie: "pulpit" });
+  /** Czy pokrętło jest w tej chwili u nas. */
+  get mamyOgnisko() {
+    return this.polaczone && this.ognisko === PULPIT;
+  }
+
+  przerwijStaranie() {
+    if (this.staranie) clearTimeout(this.staranie);
+    this.staranie = null;
+  }
+
+  /**
+   * Prosi o pokrętło dla siebie i SPRAWDZA, czy je dostała.
+   *
+   * Odmowa nie wraca żadną wiadomością (patrz POTWIERDZENIE_MS), więc jedyne, co
+   * możemy zrobić, to odczekać na potwierdzenie i po kilku próbach powiedzieć
+   * stronie prawdę. Prawda brzmi: pokrętłem steruje w tej chwili pulpit, a drogą
+   * wyjścia jest jego kafelek STERUJ.
+   */
+  wezOgnisko(proba = 0) {
+    this.przerwijStaranie();
+    if (this.ognisko === PULPIT) return true;
+    if (!this.wyslij({ cmd: "ognisko", gdzie: PULPIT })) return false;
+    this.staranie = setTimeout(() => {
+      this.staranie = null;
+      if (this.ognisko === PULPIT) return;
+      if (proba < PONOWIEN_PROSBY) {
+        this.staranie = setTimeout(() => this.wezOgnisko(proba + 1), ODSTEP_PROSBY_MS);
+        this.staranie.unref?.();
+        return;
+      }
+      rejestr.ostrzezenie(
+        "pokretlo",
+        "most nie oddał pokrętła — trzyma je pulpit; wyjście przez kafelek STERUJ na pulpicie"
+      );
+      this.emit("zdarzenie", { typ: "ognisko", gdzie: this.ognisko, mamy: false, odmowa: true });
+    }, POTWIERDZENIE_MS);
+    this.staranie.unref?.();
+    return true;
   }
 
   /**
@@ -179,12 +248,14 @@ export class Pokretlo extends EventEmitter {
    * własne „przytrzymanie = o krok wstecz".
    */
   przekazDalej() {
+    this.przerwijStaranie();
     return this.wyslij({ cmd: "ognisko", gdzie: "inny" });
   }
 
   /** Oddaje pokrętło panelowi. Wołane zawsze, gdy strona przestaje go trzymać. */
   oddajOgnisko() {
-    return this.wyslij({ cmd: "ognisko", gdzie: "panel" });
+    this.przerwijStaranie();
+    return this.wyslij({ cmd: "ognisko", gdzie: PANEL });
   }
 
   /**
@@ -204,6 +275,7 @@ export class Pokretlo extends EventEmitter {
       polaczone: this.polaczone,
       gniazdo: this.sciezka,
       ognisko: this.ognisko,
+      mamy: this.mamyOgnisko,
       zdarzen: this.zdarzen,
       trzyma: Boolean(this.trzymajacy),
     };

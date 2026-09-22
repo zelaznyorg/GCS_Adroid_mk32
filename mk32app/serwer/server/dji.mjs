@@ -283,8 +283,10 @@ export class MostDji {
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+import { DATA_DIR } from "../scripts/zrodla-lib.mjs";
 
-const KATALOG = process.env.DATA_DIR || ".";
+// To samo miejsce, co reszta stanu ruchomego — patrz komentarz w nadawanie.mjs.
+const KATALOG = DATA_DIR;
 const PLIK_USTAWIEN = join(KATALOG, "dji.json");
 
 const DOMYSLNE = {
