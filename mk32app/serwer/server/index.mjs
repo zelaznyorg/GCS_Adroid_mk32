@@ -38,6 +38,7 @@ import { Archiwum } from "./archiwum.mjs";
 import * as stacja from "./stacja.mjs";
 import * as trasy from "./trasy.mjs";
 import * as nadawanie from "./nadawanie.mjs";
+import * as nosniki from "./nosniki.mjs";
 import { MostDji, PORT_MQTT } from "./dji.mjs";
 import * as djiKonf from "./dji.mjs";
 import { OdbiorZrzutu, PORT_ZRZUTU } from "./zrzut.mjs";
@@ -701,6 +702,47 @@ app.get("/api/admin/zaproszenie/:id/kod", wymagaj("admin"), (req, res) => {
   if (!kod) return res.status(404).json({ blad: "Nie ma takiego zaproszenia." });
   res.json({ kod });
 });
+
+// ---- nośniki wymienne: kod QR na pendrive ----
+//
+// Przy stacji nie ma poczty ani komunikatora, a kod dla gościa czasem trzeba
+// wynieść. Obraz kodu rysuje PRZEGLĄDARKA — jeden generator QR w całym projekcie,
+// po stronie, która i tak go pokazuje na ekranie. Serwer tylko zapisuje gotowy
+// plik tam, gdzie system melduje zamontowany nośnik (server/nosniki.mjs).
+
+app.get("/api/admin/nosniki", wymagaj("admin"), wrap(async (_req, res) => {
+  res.json({ katalog: nosniki.KATALOG_NOSNIKOW, nosniki: await nosniki.lista() });
+}));
+
+app.post("/api/admin/nosniki/zapisz", wymagaj("admin"), wrap(async (req, res) => {
+  const { nosnik, nazwa, png, tekst } = req.body || {};
+  try {
+    const wynik = await nosniki.zapisz({
+      nosnik,
+      nazwa,
+      dane: nosniki.zDataUrl(png),
+      domyslnaNazwa: "zaproszenie.png",
+    });
+    const pliki = [wynik.plik];
+    // Obok obrazu kładziemy ten sam adres tekstem: na laptopie wkleja się go
+    // szybciej, niż skanuje kod z ekranu telefonem.
+    if (typeof tekst === "string" && tekst.trim()) {
+      const opis = await nosniki.zapisz({
+        nosnik,
+        nazwa: `${nosniki.bezpiecznaNazwa(nazwa, "zaproszenie.png").replace(/\.png$/i, "")}.txt`,
+        dane: Buffer.from(`${tekst.trim()}\n`, "utf8"),
+        domyslnaNazwa: "zaproszenie.txt",
+      });
+      pliki.push(opis.plik);
+    }
+    // ⚠ Kod zaproszenia to poświadczenie. Wyniesienie go na nośnik ma zostawić ślad
+    // w dzienniku dostępu — inaczej nikt się nie dowie, że klucz wyszedł ze stacji.
+    dostep.zapiszZdarzenie("zaproszenie", `zgrano kod na nośnik ${wynik.nosnik}`, { kto: req.kto.imie });
+    res.json({ pliki, nosnik: wynik.nosnik });
+  } catch (e) {
+    res.status(400).json({ blad: String(e.message || e) });
+  }
+}));
 
 app.delete("/api/admin/zaproszenie/:id", wymagaj("admin"), wrap(async (req, res) => {
   try {

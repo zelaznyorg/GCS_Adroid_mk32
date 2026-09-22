@@ -69,4 +69,27 @@ export const tekst = (e) => String(e?.message || e);
 // otwarty na localhost wyprodukuje link działający wyłącznie na tej jednej maszynie.
 export const linkDo = (kod) => `${window.location.origin}/#z=${kod}`;
 
+/**
+ * To samo, ale pod WSKAZANYM adresem stacji.
+ *
+ * ⛔ Od 2026-09-22 adres jest wyborem, nie skutkiem ubocznym. Panel otwarty na
+ * stanowisku ma w pasku `127.0.0.1`, więc link i kod połączeniowy wychodziły
+ * z niego martwe dla każdego poza tą jedną maszyną — panel mówił o tym
+ * ostrzeżeniem, ale poprawić się tego nie dało bez otwierania panelu od nowa
+ * pod innym adresem. Teraz admin wybiera, którą drogą gość przyjdzie.
+ */
+export const linkDoNa = (adres, kod) => `${String(adres || "").replace(/\/+$/, "")}/#z=${kod}`;
+
+/** „za 43 min", „za 20 h" — ile jeszcze wpuszcza. Null znaczy bezterminowo. */
+export function zostalo(wygasa) {
+  if (!wygasa) return "bezterminowo";
+  const ms = wygasa - Date.now();
+  if (ms <= 0) return "już nie wpuszcza";
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `jeszcze ${min} min`;
+  const godz = Math.round(min / 60);
+  if (godz < 48) return `jeszcze ${godz} h`;
+  return `jeszcze ${Math.round(godz / 24)} dni`;
+}
+
 export const NA_LOKALNYM = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);

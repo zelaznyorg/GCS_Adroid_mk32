@@ -727,3 +727,68 @@
 .karta code.sekret.ukryty { color: var(--tekst-slaby); letter-spacing: 0.3em; }
 
 .tabela tr.wiersz-danych td { border-bottom: 1px solid rgba(150, 170, 190, 0.15); padding-right: 0; }
+
+/* --- kod QR zaproszenia (admin/KodQr.jsx) ------------------------------------
+ *
+ * Biała ramka dookoła płótna nie jest ozdobą: czytnik potrzebuje jasnego tła także
+ * POZA kodem, a panel jest ciemny. `image-rendering: pixelated` trzyma ostre
+ * krawędzie modułów przy skalowaniu — rozmyty QR na ekranie stacji skanuje się
+ * o sekundy dłużej, a przy słońcu bywa, że wcale.
+ */
+.kod-qr { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+
+.kod-qr-obraz { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+
+.kod-qr-plotno {
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--linia);
+  border-radius: 6px;
+  line-height: 0;
+  cursor: zoom-in;
+}
+
+.kod-qr-plotno canvas { display: block; image-rendering: pixelated; }
+
+.kod-qr-opis { flex: 1; min-width: 20ch; }
+
+.lista-nosnikow { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Pełny ekran — do zeskanowania z drugiego końca stanowiska. Nad panelem admina
+ * (z-index 60), bo wychodzi właśnie z niego. */
+.kod-qr-pelny {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.94);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  cursor: zoom-out;
+}
+
+.kod-qr-pelny canvas {
+  background: #fff;
+  padding: 14px;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  max-width: 92vw;
+  max-height: 70vh;
+}
+
+.kod-qr-pelny-opis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 92vw;
+  text-align: center;
+}
+
+/* Zestawy zaproszeń: etykieta u góry, opis pod nią — inaczej klawisz robi się
+ * długi jak zdanie i nie mieści się w rzędzie na ekranie stacji. */
+.zestawy .przelacznik { flex-direction: column; align-items: flex-start; gap: 2px; }
+.zestawy .przypis.drobne { display: block; }

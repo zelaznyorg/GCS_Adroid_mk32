@@ -9,7 +9,7 @@ import { api } from "../sesja";
 import { ODSWIEZAJ_MS, tekst } from "./pomoc";
 import DaneAparatury from "./DaneAparatury";
 
-export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
+export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta, naPodglad }) {
   const [info, setInfo] = useState(null);
   // Usunięcie źródła zabiera obraz każdemu, kto na nie patrzy — dwa kliknięcia,
   // jak przy restarcie usługi; uzbrojenie mija po 5 s.
@@ -116,6 +116,21 @@ export default function Zrodla({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
                   </td>
                   <td>
                     <div className="rzad">
+                      {naPodglad && (
+                        <button
+                          type="button"
+                          className="przelacznik drobny"
+                          disabled={!z.widoczne}
+                          onClick={() => naPodglad(z.id)}
+                          title={
+                            z.widoczne
+                              ? "Zamyka panel i pokazuje to źródło na pełnym ekranie — czy dron nadaje, rozstrzyga oko, nie dioda"
+                              : "Źródło ukryte nie trafia na listę widza — odkryj je, żeby obejrzeć"
+                          }
+                        >
+                          PODEJRZYJ
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={`przelacznik drobny ${z.widoczne ? "wlaczony" : ""}`}

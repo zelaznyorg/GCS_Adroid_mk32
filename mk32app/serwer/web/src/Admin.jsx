@@ -55,7 +55,7 @@ function zapamietanaKarta() {
   }
 }
 
-export default function Admin({ zrodla, naZmianeZrodel, naZamknij, panel, naPanel }) {
+export default function Admin({ zrodla, naZmianeZrodel, naPodglad, naZamknij, panel, naPanel }) {
   const [karta, setKarta] = useState(zapamietanaKarta);
   const [blad, setBlad] = useState(null);
   // Uwaga wspólna dla obu kart źródeł: przełączenie nadawania (port 1935) wymaga
@@ -110,7 +110,13 @@ export default function Admin({ zrodla, naZmianeZrodel, naZamknij, panel, naPane
           <NoweZrodlo naZmianeZrodel={naZmianeZrodel} naBlad={setBlad} naUwaga={setUwaga} naKarta={wybierz} />
         )}
         {karta === "zrodla" && (
-          <Zrodla naZmianeZrodel={naZmianeZrodel} naBlad={setBlad} naUwaga={setUwaga} naKarta={wybierz} />
+          <Zrodla
+            naZmianeZrodel={naZmianeZrodel}
+            naBlad={setBlad}
+            naUwaga={setUwaga}
+            naKarta={wybierz}
+            naPodglad={naPodglad}
+          />
         )}
         {karta === "archiwum" && <Archiwum naBlad={setBlad} />}
         {karta === "diagnostyka" && <Diagnostyka naBlad={setBlad} />}

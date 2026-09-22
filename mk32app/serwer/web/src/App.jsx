@@ -579,6 +579,14 @@ export default function App() {
         <Admin
           zrodla={zrodla}
           naZmianeZrodel={wczytajZrodla}
+          // Droga z panelu wprost na obraz: „czy ten dron naprawdę nadaje" rozstrzyga
+          // spojrzenie, nie dioda w tabeli. Panel się przy tym zamyka — inaczej
+          // zasłaniałby to, po co się go otwierało.
+          naPodglad={(id) => {
+            setWybrane(id);
+            setMozaika(false);
+            setPanel(null);
+          }}
           panel={panel}
           naPanel={setPanel}
           naZamknij={() => setPanel(null)}

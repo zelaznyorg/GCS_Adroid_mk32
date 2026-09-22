@@ -11,6 +11,31 @@ import DaneAparatury from "./DaneAparatury";
 
 const PUSTE = { rodzaj: "nadawane", nazwa: "", rtspGlowny: "" };
 
+/**
+ * Wzorce źródeł pobieranych, które na tej stacji wracają w kółko.
+ *
+ * ⛔ Adres RTSP to jedyne miejsce w tym panelu, gdzie trzeba wklepać ciąg znaków
+ * bez pomyłki — a wpisuje się go POKRĘTŁEM, literę po literze. Dwa adresy, które
+ * na GSB pojawiają się przy każdej instalacji, mają więc własny klawisz. Pola
+ * zostają edytowalne: wzorzec je wypełnia, nie zastępuje.
+ */
+const WZORCE = [
+  {
+    id: "cvbs",
+    etykieta: "TOR ANALOGOWY CVBS",
+    nazwa: "CVBS — tor analogowy",
+    rtspGlowny: "rtsp://127.0.0.1:8554/uav",
+    opis: "usługa pi5-uas-rtsp na tej stacji — ten sam obraz, który nagrywa NAGRYWARKA",
+  },
+  {
+    id: "zr30",
+    etykieta: "GŁOWICA ZR30 (MK32)",
+    nazwa: "ZR30 — głowica",
+    rtspGlowny: "rtsp://192.168.144.25:8554/main.264",
+    opis: "strumień główny głowicy przez jednostkę naziemną SIYI",
+  },
+];
+
 export default function NoweZrodlo({ naZmianeZrodel, naBlad, naUwaga, naKarta }) {
   const [info, setInfo] = useState(null);       // { zrodla, maks }
   const [nowe, setNowe] = useState(PUSTE);
@@ -82,6 +107,23 @@ export default function NoweZrodlo({ naZmianeZrodel, naBlad, naUwaga, naKarta })
 
       <section>
         <div className="etykieta">2. {nadawane ? "NAZWA" : "NAZWA I ADRES"}</div>
+        {!nadawane && (
+          <div className="rzad zestawy">
+            {WZORCE.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                className={`przelacznik drobny ${nowe.rtspGlowny === w.rtspGlowny ? "wlaczony" : ""}`}
+                onClick={() => setNowe((n) => ({ ...n, nazwa: n.nazwa || w.nazwa, rtspGlowny: w.rtspGlowny }))}
+                title={w.opis}
+                disabled={komplet}
+              >
+                {w.etykieta}
+                <span className="przypis drobne"> {w.rtspGlowny}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="rzad">
           <label className="pole-etykieta rozciagnij">
             NAZWA — tak zobaczą ją widzowie
@@ -117,6 +159,13 @@ export default function NoweZrodlo({ naZmianeZrodel, naBlad, naUwaga, naKarta })
             DODAJ ŹRÓDŁO
           </button>
         </div>
+        {!nadawane && nowe.rtspGlowny.trim() && !adresOk && (
+          <p className="przypis blad">
+            Adres musi zaczynać się od <code>rtsp://</code> albo <code>rtsps://</code> — stacja
+            pobiera obraz po RTSP. Dla drona, który sam nadaje do stacji, wybierz wyżej
+            <strong> DRON DJI</strong>.
+          </p>
+        )}
         <p className={`przypis ${komplet ? "blad" : ""}`}>
           {komplet
             ? `Komplet — ${ile} z ${maks}. Więcej kafelków przeglądarka na stacji nie zdekoduje. Usuń któreś w karcie ŹRÓDŁA, żeby dodać nowe.`
