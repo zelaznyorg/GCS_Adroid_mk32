@@ -80,6 +80,30 @@ export const linkDo = (kod) => `${window.location.origin}/#z=${kod}`;
  */
 export const linkDoNa = (adres, kod) => `${String(adres || "").replace(/\/+$/, "")}/#z=${kod}`;
 
+/**
+ * Pamięć drobnych wyborów admina w tej przeglądarce (adres zewnętrzny, port).
+ *
+ * Kto raz ustawił przekierowanie na routerze, ma je przez cały sezon — a wpisywanie
+ * adresu i portu przy każdym zaproszeniu pokrętłem, znak po znaku, jest dokładnie
+ * tym, co ten panel ma zdejmować z operatora. Klucze w przestrzeni `dron15.*`,
+ * jak reszta (sesja.js tłumaczy, czemu nazw nie zmieniamy).
+ */
+export function zapamietane(klucz, domyslna = "") {
+  try {
+    return localStorage.getItem(klucz) ?? domyslna;
+  } catch {
+    return domyslna;
+  }
+}
+
+export function zapamietaj(klucz, wartosc) {
+  try {
+    localStorage.setItem(klucz, String(wartosc ?? ""));
+  } catch {
+    /* tryb prywatny — wybór przeżyje do zamknięcia karty */
+  }
+}
+
 /** „za 43 min", „za 20 h" — ile jeszcze wpuszcza. Null znaczy bezterminowo. */
 export function zostalo(wygasa) {
   if (!wygasa) return "bezterminowo";

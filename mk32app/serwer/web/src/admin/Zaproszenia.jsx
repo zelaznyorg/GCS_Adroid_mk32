@@ -13,13 +13,26 @@
 //    przeglądarki, więc panel otwarty na stanowisku (`127.0.0.1`) produkował
 //    zaproszenia martwe dla wszystkich poza tą maszyną. Panel o tym ostrzegał,
 //    ale poprawić się tego nie dało inaczej niż otwarciem panelu pod innym adresem.
-// 3. **Zestawy.** Trzy sytuacje wracają w kółko — gość na jeden lot, ktoś z zespołu
+// 3. **Adres spoza sieci.** Lista interfejsów opisuje LAN, a gość bywa po drugiej
+//    stronie routera. Wybór „spoza sieci" bierze adres publiczny, który stacja
+//    i tak zna, i pozwala podać WŁASNY PORT — przekierowanie na routerze bywa
+//    „z zewnątrz 18095 → na stację 8095". Adres i port zostają zapamiętane.
+// 4. **Zestawy.** Trzy sytuacje wracają w kółko — gość na jeden lot, ktoś z zespołu
 //    na stałe, ekran stacji. Zamiast ustawiać za każdym razem trzy pola, klika się
 //    jeden klawisz; pola zostają widoczne, więc nadal da się zrobić inaczej.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, zbudujKodPolaczenia } from "../sesja";
-import { ODSWIEZAJ_MS, WAZNOSC, ROLE, godzina, zostalo, linkDoNa, zaznacz, tekst, NA_LOKALNYM } from "./pomoc";
+import {
+  ODSWIEZAJ_MS, WAZNOSC, ROLE, godzina, zostalo, linkDoNa, zaznacz, tekst, NA_LOKALNYM,
+  zapamietane, zapamietaj,
+} from "./pomoc";
 import KodQr from "./KodQr";
+
+/** Wybór „adres spoza sieci" na liście adresów — nie jest adresem, tylko przełącznikiem. */
+const ZEWNETRZNY = "__zewnetrzny__";
+
+const KLUCZ_HOST = "dron15.admin.hostZew";
+const KLUCZ_PORT = "dron15.admin.portZew";
 
 /**
  * Zestawy dla trzech sytuacji, które wracają w kółko.
@@ -59,6 +72,11 @@ export default function Zaproszenia({ naBlad }) {
   const [adresy, setAdresy] = useState(null);
   const [nowyLink, setNowyLink] = useState(null);   // { imie, kod, rola }
   const [wybranyAdres, setWybranyAdres] = useState(null);
+  // Adres spoza sieci: co wpisać w QR, gdy gość przyjdzie z internetu albo z tunelu.
+  // Host i port pamiętamy, bo przekierowanie na routerze stoi cały sezon, a wpisywanie
+  // ich pokrętłem przy każdym zaproszeniu jest dokładnie tym, co ten panel ma zdejmować.
+  const [hostZew, setHostZew] = useState(() => zapamietane(KLUCZ_HOST, ""));
+  const [portZew, setPortZew] = useState(() => zapamietane(KLUCZ_PORT, "8095"));
 
   const [imie, setImie] = useState("");
   const [rola, setRola] = useState("widz");
@@ -96,10 +114,23 @@ export default function Zaproszenia({ naBlad }) {
     return out;
   }, [adresy]);
 
-  // Wyliczane, nie zapisywane w efekcie: adres wybrany ręcznie ma pierwszeństwo,
-  // a dopóki nikt nie wybierał — pierwszy, który cokolwiek wpuści.
+  // Adres publiczny bramy — stacja odpytuje o niego świat (server/adres_publiczny.mjs).
+  // ⚠ To jest adres ROUTERA, nie stacji: żeby wpuścił gościa, na routerze musi stać
+  // przekierowanie na port strony. Stąd osobne pole portu: przekierowanie bywa
+  // „z zewnątrz 18095 → na stację 8095".
+  const publiczny = adresy?.publiczny?.adres || null;
+  const hostDocelowy = (hostZew.trim() || publiczny || "").replace(/^https?:\/\//, "").replace(/[:/].*$/, "");
+  const zewnetrznyWybrany = wybranyAdres === ZEWNETRZNY;
+  const adresZewnetrzny = hostDocelowy ? `http://${hostDocelowy}:${String(portZew).trim() || 8095}` : null;
+
+  // Wyliczane, nie zapisywane w efekcie: wybór ręczny ma pierwszeństwo, a dopóki
+  // nikt nie wybierał — pierwszy adres, który kogokolwiek wpuści.
   const adresDocelowy =
-    wybranyAdres || adresyDoWyboru.find((a) => !a.lokalny)?.id || adresyDoWyboru[0]?.id || window.location.origin;
+    (zewnetrznyWybrany && adresZewnetrzny)
+    || (wybranyAdres !== ZEWNETRZNY ? wybranyAdres : null)
+    || adresyDoWyboru.find((a) => !a.lokalny)?.id
+    || adresyDoWyboru[0]?.id
+    || window.location.origin;
 
   const dzialanie = (obietnica) =>
     obietnica
@@ -220,12 +251,65 @@ export default function Zaproszenia({ naBlad }) {
           {adresyDoWyboru.length > 1 && (
             <label className="pole-etykieta rozciagnij">
               ADRES, KTÓRYM PRZYJDZIE GOŚĆ — link i kod QR prowadzą właśnie tam
-              <select className="pole" value={adresDocelowy} onChange={(e) => setWybranyAdres(e.target.value)}>
+              <select
+                className="pole"
+                value={zewnetrznyWybrany ? ZEWNETRZNY : adresDocelowy}
+                onChange={(e) => setWybranyAdres(e.target.value)}
+              >
                 {adresyDoWyboru.map((a) => (
                   <option key={a.id} value={a.id}>{a.etykieta}</option>
                 ))}
+                <option value={ZEWNETRZNY}>
+                  spoza sieci (WAN / tunel){publiczny ? ` — ${publiczny}` : ""}
+                </option>
               </select>
             </label>
+          )}
+
+          {zewnetrznyWybrany && (
+            <>
+              <div className="rzad">
+                <label className="pole-etykieta rozciagnij">
+                  ADRES Z ZEWNĄTRZ — publiczny IP albo nazwa
+                  <input
+                    className="pole"
+                    placeholder={publiczny || "np. 89.64.12.7 albo stacja.example.org"}
+                    value={hostZew}
+                    onChange={(e) => {
+                      setHostZew(e.target.value);
+                      zapamietaj(KLUCZ_HOST, e.target.value);
+                    }}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="pole-etykieta">
+                  PORT
+                  <input
+                    type="number"
+                    className="pole waskie"
+                    min={1}
+                    max={65535}
+                    value={portZew}
+                    onChange={(e) => {
+                      setPortZew(e.target.value);
+                      zapamietaj(KLUCZ_PORT, e.target.value);
+                    }}
+                  />
+                </label>
+              </div>
+              <p className="przypis">
+                {publiczny
+                  ? `Stacja widzi swój adres publiczny jako ${publiczny}. To adres ROUTERA — żeby wpuścił gościa, musi tam stać przekierowanie na port strony stacji.`
+                  : "Stacja nie zna swojego adresu publicznego (odpytywanie wyłączone albo brak internetu) — wpisz go ręcznie."}
+                {" "}Port zostaje ten, który wpiszesz: przekierowanie bywa „z zewnątrz 18095 → na stację 8095".
+              </p>
+              <p className="przypis blad">
+                ⚠ Wejście spoza sieci idzie po <code>http://</code>, czyli bez szyfrowania — żeton
+                i obraz lecą jawnie. Właściwą drogą z zewnątrz jest tunel WireGuard
+                (endpoint w karcie DIAGNOSTYKA); wystawianie portu strony do internetu jest
+                decyzją, którą trzeba podjąć świadomie.
+              </p>
+            </>
           )}
 
           {/* ⛔ Kod QR niesie zaproszenie — kto go sfotografuje, ten wejdzie. Przy roli
