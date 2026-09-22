@@ -211,7 +211,13 @@ export class Pokretlo extends EventEmitter {
    */
   wezOgnisko(proba = 0) {
     this.przerwijStaranie();
-    if (this.ognisko === PULPIT) return true;
+    // ⛔ ŻADNEGO wyjścia na skróty przy `ognisko === "pulpit"`. Ten stan bywa
+    // NIEAKTUALNY: gdy strumień strony zerwie się i wstanie w ciągu milisekund,
+    // nasze „oddaję" jest już w drodze do mostu, a my jeszcze myślimy, że mamy
+    // pokrętło — i nie prosimy o nie ponownie. Skutek zmierzony na GSB
+    // 2026-09-22: po takim przeplocie ognisko zostawało przy panelu, a strona
+    // czekała w nieskończoność. Ponowna prośba przy pokrętle, które i tak mamy,
+    // nic nie kosztuje: most odpowiada na nią zgodą bez zmiany właściciela.
     if (!this.wyslij({ cmd: "ognisko", gdzie: PULPIT })) return false;
     this.staranie = setTimeout(() => {
       this.staranie = null;

@@ -87,11 +87,18 @@ test("odebrane pokrętło melduje się stronie, ale nie jako odmowa", async (t) 
   );
 });
 
-test("drugie wzięcie przy pokrętle już u nas nie zaczepia mostu", async (t) => {
+// ⛔ Pytamy MOST, a nie własną pamięć. Wcześniej `wezOgnisko` wychodziło na skróty,
+// gdy `ognisko` mówiło „pulpit" — i właśnie na tym wykładało się pokrętło na GSB
+// 2026-09-22: przy zerwaniu i wznowieniu strumienia w ciągu milisekund nasze
+// „oddaję" było już w drodze do mostu, a my jeszcze myśleliśmy, że mamy pokrętło,
+// więc nie prosiliśmy o nie ponownie. Ognisko zostawało przy panelu na zawsze.
+test("ponowna prośba przy pokrętle już u nas i tak idzie do mostu", async (t) => {
   const p = pokretlo(t);
   p.przyjmij(JSON.stringify({ typ: "ognisko", gdzie: "pulpit" }));
   assert.equal(p.wezOgnisko(), true);
   await odczekaj(120);
-  assert.equal(prosby(p), 0);
+  assert.equal(prosby(p), 1);
+  // Most odpowiada zgodą bez zmiany właściciela, więc ani ponowień, ani odmowy.
   assert.equal(odmowy(p), 0);
+  assert.equal(p.mamyOgnisko, true);
 });

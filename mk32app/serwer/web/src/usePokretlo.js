@@ -157,6 +157,19 @@ export function usePokretlo({ wlaczone = true, zetonWidza = null } = {}) {
       setBlad("Pokrętło niedostępne — może trzyma je ktoś inny albo panel nie działa.");
     };
 
+    // ⛔ Pokrętło przejęło inne okno tej samej stacji. Zamykamy strumień SAMI —
+    // gdyby zrobił to serwer, EventSource połączyłby się z powrotem po sekundzie,
+    // odebrał pokrętło temu oknu i oddał je przy następnym zerwaniu. Z dwóch okien
+    // robiła się wtedy wojna o ognisko (GSB 2026-09-22, 21:46).
+    zrodlo.addEventListener("przejete", () => {
+      if (!zywe) return;
+      zywe = false;
+      zrodlo.close();
+      setPolaczone(false);
+      setMamy(false);
+      setBlad("Pokrętło przejęło inne okno stacji — naciśnij POKRĘTŁO, żeby je odebrać.");
+    });
+
     zrodlo.onmessage = (e) => {
       // ⛔ Nie polegamy na samym `onopen`. Zmierzone na stacji: serwer odnotował
       // „monitory stacji bierze pokrętło", a strona nadal pokazywała BRAK — czyli

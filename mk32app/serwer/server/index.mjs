@@ -936,23 +936,27 @@ app.get("/api/pokretlo", (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
-  // Ta sama przeglądarka wraca (odświeżenie strony, wznowienie EventSource): stary
-  // strumień bywa jeszcze otwarty i bez tego wisiałby do końca życia procesu, a jego
-  // późniejsze zamknięcie oddawałoby pokrętło panelowi w środku pracy operatora.
-  // Zamknięcie jest przed przypisaniem nowego właściciela — wtedy `koniec()` starego
-  // strumienia rozpozna po `wyslij`, że pokrętła już nie trzyma, i niczego nie odda.
-  pokretlo.trzymajacy?.zakoncz?.();
+  // Ta sama przeglądarka wraca (odświeżenie strony, wznowienie EventSource): staremu
+  // strumieniowi mówimy, że pokrętło przeszło dalej, i zostawiamy go OTWARTEGO.
+  //
+  // ⛔ NIE WOLNO go tutaj zamknąć. `EventSource` po zamknięciu przez serwer łączy się
+  // PONOWNIE — sam, po sekundzie — a każde nowe połączenie bierze pokrętło i oddaje
+  // je przy zerwaniu. Z dwóch okien robi się wtedy wojna o ognisko: zmierzone na GSB
+  // 2026-09-22 o 21:46, „bierze / oddaje" co sto pięćdziesiąt milisekund, aż pokrętło
+  // zostawało przy panelu i nie reagowało na nic. Zamknąć strumień może tylko klient
+  // i robi to po tej wiadomości (usePokretlo.js).
+  pokretlo.trzymajacy?.przejete?.();
 
   const wyslij = (w) => res.write(`data: ${JSON.stringify(w)}\n\n`);
   pokretlo.trzymajacy = {
     zetonId: kto.id,
     imie: kto.imie,
     wyslij,
-    zakoncz: () => {
+    przejete: () => {
       try {
-        res.end();
+        res.write(`event: przejete\ndata: {}\n\n`);
       } catch {
-        /* i tak porzucamy uchwyt */
+        /* strumień i tak już nie żyje */
       }
     },
   };
