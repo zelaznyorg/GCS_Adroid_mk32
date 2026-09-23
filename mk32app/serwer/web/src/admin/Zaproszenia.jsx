@@ -33,6 +33,8 @@ const ZEWNETRZNY = "__zewnetrzny__";
 
 const KLUCZ_HOST = "dron15.admin.hostZew";
 const KLUCZ_PORT = "dron15.admin.portZew";
+/** Którym adresem gość przychodzi. Zapamiętane, bo to cecha STANOWISKA, nie chwili. */
+const KLUCZ_ADRES = "dron15.admin.adresZaproszen";
 
 /**
  * Zestawy dla trzech sytuacji, które wracają w kółko.
@@ -71,7 +73,12 @@ export default function Zaproszenia({ naBlad }) {
   const [lista, setLista] = useState(null);
   const [adresy, setAdresy] = useState(null);
   const [nowyLink, setNowyLink] = useState(null);   // { imie, kod, rola }
-  const [wybranyAdres, setWybranyAdres] = useState(null);
+  // ⛔ Wybór adresu MUSI być trwały. Pierwsza wersja domyślnie siadała na pierwszym
+  // adresie LAN i wracała tam po każdym otwarciu panelu, więc kod QR raz po raz
+  // niósł adres lokalny, choć stacja ma być osiągalna z zewnątrz (GSB 2026-09-22).
+  // Sposób wejścia gościa to cecha stanowiska, a nie decyzja podejmowana od nowa
+  // przy każdym zaproszeniu.
+  const [wybranyAdres, setWybranyAdres] = useState(() => zapamietane(KLUCZ_ADRES, "") || null);
   // Adres spoza sieci: co wpisać w QR, gdy gość przyjdzie z internetu albo z tunelu.
   // Host i port pamiętamy, bo przekierowanie na routerze stoi cały sezon, a wpisywanie
   // ich pokrętłem przy każdym zaproszeniu jest dokładnie tym, co ten panel ma zdejmować.
@@ -123,14 +130,20 @@ export default function Zaproszenia({ naBlad }) {
   const zewnetrznyWybrany = wybranyAdres === ZEWNETRZNY;
   const adresZewnetrzny = hostDocelowy ? `http://${hostDocelowy}:${String(portZew).trim() || 8095}` : null;
 
-  // Wyliczane, nie zapisywane w efekcie: wybór ręczny ma pierwszeństwo, a dopóki
-  // nikt nie wybierał — pierwszy adres, który kogokolwiek wpuści.
+  // Wyliczane, nie zapisywane w efekcie. Kolejność: wybór zapamiętany → adres
+  // publiczny, gdy stacja go zna (bo po to stoi w internecie) → pierwszy adres
+  // sieciowy → cokolwiek.
   const adresDocelowy =
     (zewnetrznyWybrany && adresZewnetrzny)
-    || (wybranyAdres !== ZEWNETRZNY ? wybranyAdres : null)
+    || (wybranyAdres && wybranyAdres !== ZEWNETRZNY ? wybranyAdres : null)
+    || (!wybranyAdres && adresZewnetrzny)
     || adresyDoWyboru.find((a) => !a.lokalny)?.id
     || adresyDoWyboru[0]?.id
     || window.location.origin;
+
+  // Domyślnie „spoza sieci", gdy stacja zna swój adres publiczny i nikt nie wybrał
+  // inaczej — to jest ta decyzja, którą panel miał podejmować za operatora.
+  const zewnetrzny = zewnetrznyWybrany || (!wybranyAdres && Boolean(adresZewnetrzny));
 
   const dzialanie = (obietnica) =>
     obietnica
@@ -253,8 +266,11 @@ export default function Zaproszenia({ naBlad }) {
               ADRES, KTÓRYM PRZYJDZIE GOŚĆ — link i kod QR prowadzą właśnie tam
               <select
                 className="pole"
-                value={zewnetrznyWybrany ? ZEWNETRZNY : adresDocelowy}
-                onChange={(e) => setWybranyAdres(e.target.value)}
+                value={zewnetrzny ? ZEWNETRZNY : adresDocelowy}
+                onChange={(e) => {
+                  setWybranyAdres(e.target.value);
+                  zapamietaj(KLUCZ_ADRES, e.target.value);
+                }}
               >
                 {adresyDoWyboru.map((a) => (
                   <option key={a.id} value={a.id}>{a.etykieta}</option>
@@ -266,7 +282,7 @@ export default function Zaproszenia({ naBlad }) {
             </label>
           )}
 
-          {zewnetrznyWybrany && (
+          {zewnetrzny && (
             <>
               <div className="rzad">
                 <label className="pole-etykieta rozciagnij">
@@ -333,6 +349,11 @@ export default function Zaproszenia({ naBlad }) {
             </p>
           )}
 
+          <div className="przypis">
+            {zewnetrzny
+              ? "Link i kod QR prowadzą spoza sieci — gość z tej samej sieci co stacja może potrzebować adresu lokalnego (lista wyżej)."
+              : "Link i kod QR prowadzą adresem lokalnym — gość musi być w tej samej sieci albo w tunelu."}
+          </div>
           <div className="przypis">Link — otwiera stronę i wpuszcza:</div>
           <code className="endpoint maly" onClick={zaznacz} title="Kliknij, żeby zaznaczyć">{link}</code>
 
